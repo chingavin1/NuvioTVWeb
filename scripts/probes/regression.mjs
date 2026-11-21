@@ -456,15 +456,42 @@ async function authPhoneGate(browser) {
   if (await a.evaluate(() => !!document.querySelector("#auth-email-form")))
     qrProblems.push({ kind: "auth", why: "email form shown on tvLogin-only server" });
   const qrBox = await probe(a, "#qr-container canvas");
-  if (!qrBox || qrBox.hidden || qrBox.h < 150)
-    qrProblems.push({ kind: "auth", why: "QR not visible: " + JSON.stringify(qrBox) });
-  const link = await probe(a, ".qr-open-link-primary");
+  if (qrBox && !qrBox.hidden)
+    qrProblems.push({
+      kind: "auth",
+      why: "QR canvas rendered on phone tier; one-time link expected instead"
+    });
+  const link = await probe(a, ".qr-one-time-link");
   if (!link || link.hidden || link.h < 44)
     qrProblems.push({
       kind: "auth",
-      why: "open-on-this-device link missing/<44px: " + JSON.stringify(link)
+      why: "one-time sign-in link missing/<44px: " + JSON.stringify(link)
+    });
+  const href = await a.evaluate(
+    () => document.querySelector(".qr-one-time-link")?.getAttribute("href") || ""
+  );
+  if (!/^https?:\/\//i.test(href))
+    qrProblems.push({ kind: "auth", why: "one-time link href not https: " + href });
+  const openLink = await probe(a, ".qr-open-link-primary");
+  if (!openLink || openLink.hidden || openLink.h < 44)
+    qrProblems.push({
+      kind: "auth",
+      why: "open-on-this-device link missing/<44px: " + JSON.stringify(openLink)
     });
   await ctxA.close();
+
+  // Desktop web parity: the TV-canvas rule (longer side >=1440) keeps the
+  // stock QR canvas path; the one-time-link block is phone/compact tier only.
+  const ctxD = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const d = await ctxD.newPage();
+  await d.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+  await d.waitForSelector("#qr-container canvas", { timeout: 20000 }).catch(() => {});
+  await d.waitForTimeout(2000);
+  if (await d.evaluate(() => !!document.querySelector(".qr-one-time-link")))
+    qrProblems.push({ kind: "auth", why: "one-time link block leaked into desktop web tier" });
+  if (!(await d.evaluate(() => !!document.querySelector("#qr-container canvas"))))
+    qrProblems.push({ kind: "auth", why: "QR canvas missing on desktop web tier" });
+  await ctxD.close();
 
   const ctxB = await browser.newContext(opts);
   await ctxB.addInitScript(
