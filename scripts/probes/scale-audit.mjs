@@ -175,7 +175,11 @@ const settingsProbe = await page.evaluate(() => {
   return chip ? "chip:" + chip.innerText.trim().slice(0, 20) : "no-chip";
 });
 console.log("settings profiles chip:", settingsProbe);
-await page.waitForTimeout(1500);
+const manageSeen = await page
+  .waitForSelector(".settings-profile-manage-row", { timeout: 6000 })
+  .then(() => true)
+  .catch(() => false);
+console.log("manage row visible:", manageSeen);
 const manageProbe = await page.evaluate(() => {
   const row =
     document.querySelector(".settings-profile-manage-row") ||

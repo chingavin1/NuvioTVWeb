@@ -1585,6 +1585,23 @@
   gap: 12px;
   width: 100%;
   height: auto;
+  flex-wrap: wrap;
+}
+.web-touch #profileSelection button[data-action="select-copy-source"] {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+.web-touch #profileSelection .profile-editor-copy-source-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
 }
 .web-touch #profileSelection .profile-editor-preview-avatar {
   width: 56px;
@@ -1608,7 +1625,12 @@
 .web-touch #profileSelection .profile-editor-field-shell {
   width: auto;
   flex: 1 1 auto;
-  min-width: 0;
+  min-width: 140px;
+}
+.web-touch #profileSelection .profile-editor-name-input {
+  width: 100%;
+  min-width: 140px;
+  box-sizing: border-box;
 }
 .web-touch #profileSelection .profile-editor-preview-name {
   flex: 1 1 auto;
@@ -1626,8 +1648,11 @@
 }
 .web-touch #profileSelection .profile-overlay-button {
   min-height: 44px;
-  padding: 0 16px;
+  width: auto;
+  min-width: 48px;
+  padding: 0 12px;
   font-size: 15px;
+  white-space: nowrap;
 }
 .web-touch #profileSelection .profile-editor-tabs {
   gap: 8px;

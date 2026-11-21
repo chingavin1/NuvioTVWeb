@@ -650,6 +650,162 @@ if (!harnessOnly) {
   );
   await page.waitForTimeout(1500);
   await audit(page, "settings-player");
+
+  // Profile tier gates. The boot-time "Who's watching?" landing only
+  // auto-mounts with a reachable profile-sync backend; Settings -> Profiles
+  // chip -> Manage Profiles mounts the SAME #profileSelection screen, so the
+  // phone-scale assertions run through that touch-reachable path.
+  {
+    const problems = [];
+    await navTo(page, "Settings");
+    try {
+      await page.waitForSelector(".settings-nav-item", { timeout: 8000 });
+    } catch (_) {}
+    const chip = await page.evaluate(() => {
+      const c = [...document.querySelectorAll(".settings-nav-item")].find((n) =>
+        /profile/i.test(n.innerText || "")
+      );
+      if (c) c.click();
+      return !!c;
+    });
+    const manageSeen = await page
+      .waitForSelector(".settings-profile-manage-row", { timeout: 6000 })
+      .then(() => true)
+      .catch(() => false);
+    const manage = await page.evaluate(() => {
+      const row = document.querySelector(".settings-profile-manage-row");
+      if (row) row.click();
+      return !!row;
+    });
+    await page.waitForTimeout(2500);
+    if (!chip || !manage || !(await page.locator(".profile-card").count())) {
+      problems.push({ kind: "profile-picker", why: "manage entry not reachable", chip, manage });
+    } else {
+      for (const f of await page.evaluate(AUDIT, "#profileSelection"))
+        problems.push({ ...f, screen: "profile-picker" });
+      const scale = await page.evaluate(() => {
+        const box = (s) => {
+          const r = document.querySelector(s)?.getBoundingClientRect();
+          return r ? { w: Math.round(r.width), h: Math.round(r.height) } : null;
+        };
+        const fs = (s) =>
+          Math.round(
+            parseFloat(getComputedStyle(document.querySelector(s) || document.body).fontSize)
+          );
+        return {
+          avatar: box(".profile-avatar"),
+          ring: box(".profile-avatar-ring"),
+          card: box(".profile-card"),
+          name: fs(".profile-name"),
+          title: fs(".profile-title")
+        };
+      });
+      if (!scale.avatar || scale.avatar.w > 150)
+        problems.push({ kind: "picker-avatar-tv-size", avatar: scale.avatar });
+      if (!scale.card || scale.card.w > 190)
+        problems.push({ kind: "picker-card-tv-size", card: scale.card });
+      if (scale.name > 18) problems.push({ kind: "picker-name-tv-size", fs: scale.name });
+      if (scale.title > 24) problems.push({ kind: "picker-title-tv-size", fs: scale.title });
+
+      // Editor overlay: its min(xvw,px) TV tokens collapse to ~5px text at
+      // phone width, so the gate asserts the phone floor instead of a max.
+      await page.evaluate(() => {
+        [...document.querySelectorAll("#profileSelection .focusable")]
+          .find((n) => /add profile/i.test(n.innerText || ""))
+          ?.click();
+      });
+      await page.waitForTimeout(1200);
+      if (!(await page.locator(".profile-editor-panel").count())) {
+        problems.push({ kind: "profile-editor-missing" });
+      } else {
+        for (const f of await page.evaluate(AUDIT, ".profile-editor-backdrop"))
+          problems.push({ ...f, screen: "profile-editor" });
+        const floor = await page.evaluate(() => {
+          const hs = [
+            ...document.querySelectorAll(".profile-editor-panel .profile-overlay-button")
+          ].map((b) => Math.round(b.getBoundingClientRect().height));
+          const input = document.querySelector(".profile-editor-name-input");
+          return {
+            minBtn: hs.length ? Math.min(...hs) : 0,
+            input: input ? Math.round(input.getBoundingClientRect().height) : 0,
+            minFs: Math.min(
+              ...[...document.querySelectorAll(".profile-editor-panel *")]
+                .filter((e) => !e.children.length && (e.innerText || "").trim())
+                .map((e) => Math.round(parseFloat(getComputedStyle(e).fontSize)))
+            )
+          };
+        });
+        if (floor.minBtn < 44) problems.push({ kind: "profile-editor-tap-target", ...floor });
+        if (floor.input < 44) problems.push({ kind: "profile-editor-input", ...floor });
+        if (floor.minFs < 11) problems.push({ kind: "profile-editor-collapsed-text", ...floor });
+      }
+    }
+    results.push({ label: "profile-tier", ok: problems.length === 0, fails: problems });
+    console.log(
+      `${problems.length ? "FAIL" : "PASS"} profile-tier${problems.length ? " " + JSON.stringify(problems) : ""}`
+    );
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await gotoHome(page);
+  }
+
+  // Episode-selection gate: sweep home cards for a SERIES detail (card 0 is
+  // usually a movie), then assert the episode rail/season chips sit at phone
+  // scale — pre-fix they were 560x358 cards with fs32 titles and 220x88
+  // season buttons on a 390px viewport.
+  {
+    const problems = [];
+    let episodes = 0;
+    let tried = 0;
+    const nCards = await page.locator(".home-main .home-poster-card").count();
+    for (let i = 0; i < Math.min(nCards, 20); i++) {
+      tried++;
+      await page.evaluate(
+        (idx) => document.querySelectorAll(".home-main .home-poster-card")[idx]?.click(),
+        i
+      );
+      await page.waitForTimeout(1700);
+      episodes = await page.evaluate(
+        () => document.querySelectorAll(".series-episode-card").length
+      );
+      if (episodes) break;
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    }
+    if (!episodes) {
+      problems.push({ kind: "episode-gate-no-series", cards: nCards, tried });
+      results.push({ label: "detail-episodes", ok: nCards === 0, fails: problems });
+      console.log(
+        `${nCards === 0 ? "SKIP" : "FAIL"} detail-episodes${nCards === 0 ? " (no home cards to seed)" : " " + JSON.stringify(problems)}`
+      );
+    } else {
+      for (const f of await page.evaluate(AUDIT, "#detail"))
+        problems.push({ ...f, screen: "detail-episodes" });
+      const scale = await page.evaluate(() => {
+        const vw = window.innerWidth;
+        const card = document.querySelector(".series-episode-card")?.getBoundingClientRect();
+        const title = document.querySelector(".series-episode-title");
+        const chips = [...document.querySelectorAll(".series-season-btn")].map((b) =>
+          Math.round(b.getBoundingClientRect().height)
+        );
+        return {
+          cardW: card ? Math.round(card.width) : 0,
+          titleFs: title ? Math.round(parseFloat(getComputedStyle(title).fontSize)) : 0,
+          minChip: chips.length ? Math.min(...chips) : 0,
+          maxChip: chips.length ? Math.max(...chips) : 0,
+          vw
+        };
+      });
+      if (scale.cardW === 0 || scale.cardW > scale.vw - 60)
+        problems.push({ kind: "episode-card-tv-size", ...scale });
+      if (scale.titleFs > 20) problems.push({ kind: "episode-title-tv-size", ...scale });
+      if (scale.minChip < 44 || scale.maxChip > 64)
+        problems.push({ kind: "episode-season-chip-scale", ...scale });
+      results.push({ label: "detail-episodes", ok: problems.length === 0, fails: problems });
+      console.log(
+        `${problems.length ? "FAIL" : "PASS"} detail-episodes${problems.length ? " " + JSON.stringify(problems) : ""}`
+      );
+    }
+  }
 }
 
 // Static player harness: the live player needs an authenticated account with
