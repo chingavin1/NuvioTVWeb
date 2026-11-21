@@ -163,7 +163,7 @@ export function createAuthQrSignInScreenMethods02() {
         }
         this.renderQr(result);
         this.setStatus(
-          this.isPhoneLoginTier()
+          this.isSameDeviceLoginTier()
             ? I18n.t("auth.qr.openLinkInstruction", {}, { fallback: "Tap the link to sign in. Keep this page open until it completes." })
             : I18n.t("auth.qr.scanAndSignIn")
         );
@@ -185,7 +185,7 @@ export function createAuthQrSignInScreenMethods02() {
       // Phone tier: a QR on the very device that must read it is useless. The
       // phone renders the one-time login URL (the exact payload the QR would
       // encode) as a primary tap target instead of the canvas; TVs keep the QR.
-      if (this.isPhoneLoginTier()) {
+      if (this.isSameDeviceLoginTier()) {
         this.renderOneTimeLinkLogin(loginUrl || verificationUri, displayCode || code);
         if (manualText) {
           const manualUrl = String(verificationUri || "")
@@ -236,7 +236,7 @@ export function createAuthQrSignInScreenMethods02() {
         this.serverConfiguration?.tvLoginWebBaseUrl || ServerConfigurationStore.getActive?.()?.tvLoginWebBaseUrl || ""
       ).trim();
       if (!/^https?:\/\//i.test(loginUrl)) return;
-      if (this.isPhoneLoginTier()) {
+      if (this.isSameDeviceLoginTier()) {
         this.renderOneTimeLinkLogin(loginUrl, "");
         const fallbackCodeText = this.container?.querySelector("#qr-code-text");
         if (fallbackCodeText) {
@@ -285,9 +285,13 @@ export function createAuthQrSignInScreenMethods02() {
       targetNode.appendChild(anchor);
       return anchor;
     },
-    // Phone/browser tier where a QR cannot be scanned by its own viewer.
-    isPhoneLoginTier() {
-      return Platform.isBrowser() && Platform.isCompactViewport();
+    // Phone AND tablet (iPad) browser tier: the device holding the app cannot
+    // also hold a camera up to its own screen, so the QR is useless there.
+    // isTouchDevice() covers finger-only-pointer tablets even when their
+    // canvas is too wide for the compact tier; a mouse/trackpad desktop keeps
+    // the QR because a second device can scan it.
+    isSameDeviceLoginTier() {
+      return Platform.isBrowser() && (Platform.isCompactViewport() || Platform.isTouchDevice());
     },
     // Renders the one-time login URL (the same payload the QR encodes) as the
     // primary tap target. Approval on the opened page completes the existing

@@ -459,23 +459,26 @@
   font-size: 16px;
 }
 
-/* Phone login tier: the QR canvas is replaced by the one-time login link
-   (same payload the QR encoded) as the primary tap target. TV/Tizen/webOS
-   keep the canvas path; this only styles the phone-tier block the JS renders
-   inside #qr-container when Platform.isCompactViewport() && isBrowser(). */
-.web-touch #qr-container {
+/* Phone AND tablet login tier: the QR canvas is replaced by the one-time
+   login link (same payload the QR encoded) as the primary tap target when
+   the JS renders it (isSameDeviceLoginTier). The rules are therefore
+   self-scoped to the rendered block instead of .web-touch, so a finger-only
+   tablet in a wide (non-compact) window is styled too. TV/Tizen/webOS keep
+   the canvas path; :has() is unsupported on TV engines and simply drops the
+   flex rule, which only ever matches in the browser tiers anyway. */
+#qr-container:has(.qr-one-time-link) {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.web-touch .qr-one-time-link {
+.qr-one-time-link {
   width: min(100%, 320px);
   margin-top: 6px;
   font-weight: 700;
 }
 
-.web-touch .qr-one-time-link-note {
+.qr-one-time-link-note {
   margin-top: 10px;
   padding: 0 6px;
   font-size: 13px;
@@ -484,7 +487,7 @@
   text-align: center;
 }
 
-.web-touch .qr-one-time-link-code {
+.qr-one-time-link-code {
   margin-top: 8px;
   font-size: 13px;
   color: #8fa3b8;
