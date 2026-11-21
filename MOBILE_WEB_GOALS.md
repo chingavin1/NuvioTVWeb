@@ -5,6 +5,19 @@
 
 Grounded in branch `feat/web-touch-client` (8 commits ahead of origin). Screens in the codebase: account, cast, catalog, collection, debug, detail, home, library, onboarding, party, player, plugin, search, settings, stream, supporters, tmdb, trakt. No manifest/service worker yet. Touch tier already covers auth/QR, home, bottom nav, detail, settings, search, library, player tokens.
 
+## ACTIVE GOAL — Full-scale phone pass (2026-11-21): profile selection, episode selection, everything
+
+User directive: downscale UI elements to phone scale everywhere, explicitly including the landing-page profile selection ("Who's watching?") and episode selection. Suite-green != phone scale (real-phone feedback after 14/14 PASS said UI still too big). Method per the touch-tier playbook: rank live-DOM computed font-sizes/control heights per screen, shrink to NuvioMobile references (poster 110-114, buttons 44-48, title 20-26, body 14-15, block gaps 16-20), rerun overlap gates after each compaction.
+
+- [ ] T1 Baseline audit: live-DOM scale ranker (fs>=16px / h>=56px leaves, grouped by class) at 390x844, 390x660, 844x390 for profile picker, home, detail episode list, player episode panel; screenshots for the record
+- [ ] T2 Profile selection phone tier: components-66 rules for `.profile-grid`/`.profile-card`/`.profile-avatar-tile` (TV 304px cards, 160px tiles → ~110px avatars, 2-col grid, 20-26px titles, >=44px targets); tap activation verified (screen is DPAD-keyed — check click path + suppressedFocusClick interplay)
+- [ ] T3 Profile PIN overlay + editor overlays at phone scale: keypad keys >=56px, avatar picker grid 3-col, name input 44px, all in components-66 or JS compact-tier vars
+- [ ] T4 Episode selection on detail: `.series-episode-card`/`.series-episode-thumb`/title/meta down from ATV 2x dp to phone (thumb ~160x90 or full-width row list), season selector chips 44px
+- [ ] T5 Player episode panel row compaction: `.player-episode-panel` rows (thumb, 16px title, 13px meta), season tabs already 44px — tighten list rhythm
+- [ ] T6 General residual sweep: shrink typographic rhythm/block gaps (30-40px → 16-20px) surfaced by T1 across home/detail/settings/search/library; grep method files for bare ATV numeric tokens (126/252/80/24) on any surface still TV-sized
+- [ ] T7 New probe gates: profile-picker scale gate (audit the picker before dismissing it for nav), detail-episode + player-episode-panel tap/size checks; add to scripts/probes/regression.mjs so fork CI guards phone scale
+- [ ] T8 Verify: node scripts/test-legacy-css-colors.mjs, npm test, npm run test:mobile-web at 3 viewports, overlap rerun after every compaction, TV byte-identical review (every hunk .web-touch/isCompactViewport-gated); push branch to trigger fork CI
+
 ## Phase 1 — Close out the touch-tier branch (finish what's in flight)
 
 - [x] Merge `feat/web-touch-client` → main after the 8 unpushed commits pass review (push first)
