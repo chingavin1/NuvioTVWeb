@@ -1445,3 +1445,50 @@
 .web-touch .home-modern-row + .home-modern-row {
   margin-top: 6px;
 }
+
+/* ---- Height-adaptive phone tiers ----
+   Portrait Safari loses ~150px of dvh to browser chrome; landscape phones
+   get only ~390px of height. Re-budget the vertical stack instead of
+   letting posters slide under the bottom nav. */
+@media (max-height: 760px) {
+  .web-touch .home-hero-modern .home-hero-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .web-touch .home-hero-logo,
+  .web-touch .home-hero-brand {
+    height: 36px;
+    max-height: 36px;
+  }
+}
+
+@media (max-height: 520px) {
+  /* Landscape phones: shrink poster tokens (JS sets these inline) so a
+     row title + card + peek fit inside the shortened rows viewport. */
+  .web-touch .home-screen-shell.home-layout-modern {
+    --modern-rows-viewport-height: 62%;
+    --home-poster-width: 84px !important;
+    --home-poster-height: 126px !important;
+    --home-modern-portrait-poster-width: 84px !important;
+    --home-modern-portrait-poster-height: 126px !important;
+  }
+  .web-touch .home-hero-modern .home-hero-description {
+    display: none;
+  }
+  .web-touch .home-hero-logo,
+  .web-touch .home-hero-brand {
+    height: 28px;
+    max-height: 28px;
+  }
+  .web-touch {
+    --touch-nav-height: 52px;
+  }
+  .web-touch .home-nav-label {
+    display: none;
+  }
+  .web-touch .home-nav-item {
+    height: 40px;
+  }
+}
