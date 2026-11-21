@@ -244,6 +244,71 @@
   padding-right: var(--touch-gutter);
 }
 
+/* isLowEndDevice() flags any 4-core runtime (budget Android phones, TV boxes,
+   every CI runner) and components-49 then pins modern-home rails to
+   overflow:hidden — a TV-only optimization for programmatic scrollLeft
+   centering. The touch tier never centers rails (compact viewport yields to
+   native pan), so hidden overflow there strands every card past the viewport
+   edge. Keep rails native scrollers on touch tiers regardless. */
+.web-touch.performance-constrained .home-screen-shell.home-layout-modern .home-track {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* ---------- Dialogs (NuvioDialog: hold-menu, watchlist, comments…) ----------
+   Every NuvioDialog dimension is Android TV dp x 2 (48px panel padding, 80px
+   pill buttons at 28px text) and the JS pins an inline max-width in vw — on a
+   390px phone that yields a 146px panel with TV-sized buttons stacked into a
+   column taller than the fold. Re-derive at phone dialog scale. */
+.web-touch .nuvio-dialog-panel {
+  width: min(92vw, 360px) !important;
+  max-width: 92vw !important;
+  padding: 20px 18px;
+  gap: 14px;
+  border-radius: 16px;
+}
+
+.web-touch .nuvio-dialog-title {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.web-touch .nuvio-dialog-subtitle {
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: -6px;
+}
+
+.web-touch .nuvio-dialog-actions {
+  gap: 10px;
+}
+
+.web-touch .nuvio-dialog-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 15px;
+  line-height: 20px;
+  border-radius: 10px;
+}
+
+/* Detail rails are horizontal overflow scrollers already (css/components-40.css
+   .detail-morelike-track). Give them the same phone carousel feel as the home
+   rails: inertial scrolling and proximity snap. touch-action stays default so
+   a vertical swipe started on a rail still scrolls the page. */
+.web-touch .detail-morelike-track,
+.web-touch .detail-trailer-track,
+.web-touch .detail-comments-track,
+.web-touch .detail-company-track {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
+.web-touch .detail-morelike-card,
+.web-touch .detail-comments-track > *,
+.web-touch .detail-company-track > * {
+  scroll-snap-align: start;
+}
+
 .web-touch .home-screen-shell.home-layout-modern .home-modern-hero-media {
   right: 0;
 }
@@ -394,6 +459,24 @@
   font-size: 16px;
 }
 
+/* One-tap QR<->email switch on the touch tier (renderModeSwitch); the TV tier
+   reaches the same toggle through the server menu and never renders this. */
+.web-touch .qr-mode-switch-row {
+  margin-top: 12px;
+}
+
+.web-touch .qr-mode-switch {
+  min-height: 44px;
+  width: 100%;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  text-align: center;
+}
+
 .web-touch .qr-actions {
   margin-top: 14px;
   gap: 12px;
@@ -487,9 +570,123 @@
 
 /* ---------- Detail screen (series/movie) ----------
    .series-detail-shell carries the Android TV dp x 2 port as design tokens
-   (css/components-52.css: 96px buttons, 72px title, 28px body). Re-derive
-   them at phone size, then fix the few places with hardcoded 300px geometry
-   that overflow a 390dp viewport. */
+   (css/components-40..53.css: 96px buttons, 40px line-heights, 56px glyphs).
+   The tokens must sit on the #detail root: the hero CTA row, synopsis and
+   meta live outside .series-detail-shell — and the movie screen does not use
+   that shell at all — so the TV 96px/40px rules were winning everywhere.
+   Re-derive at phone scale, then fix the hardcoded geometry the tokens miss. */
+.web-touch #detail {
+  --detail-safe-x: 16px;
+  --detail-episode-safe-x: 16px;
+  --detail-action-gap: 10px;
+  --detail-button-height: 48px;
+  --detail-control-size: 48px;
+  --detail-title-size: 26px;
+  --detail-section-title-size: 18px;
+  --detail-label-size: 14px;
+  --detail-body-size: 15px;
+  --detail-caption-size: 13px;
+}
+
+.web-touch .series-primary-btn {
+  min-height: 48px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 15px;
+  line-height: 1;
+  gap: 8px;
+}
+
+.web-touch .series-secondary-btn {
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+
+.web-touch .series-detail-actions {
+  margin-bottom: 16px;
+}
+
+/* components-53 line-heights (40px) are the single biggest space-hog on the
+   phone detail page: synopsis, credits and meta rows all inherit them. */
+.web-touch .detail-synopsis-preview {
+  line-height: 22px;
+}
+
+.web-touch .series-detail-support,
+.web-touch .detail-meta-row,
+.web-touch .detail-meta-row .detail-meta-genres {
+  line-height: 20px;
+}
+
+.web-touch .series-detail-support {
+  margin-bottom: 12px;
+}
+
+.web-touch .series-insight-tab,
+.web-touch .series-insight-divider {
+  line-height: 1.6;
+}
+
+.web-touch .series-insight-tab {
+  padding: 9px 6px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.web-touch .movie-cast-avatar-fallback {
+  font-size: 26px;
+}
+
+.web-touch .movie-cast-name {
+  line-height: 1.35;
+}
+
+/* ---------- Profile pill + profile modal ----------
+   The modal is pure Android TV scale (88px title, 47/38px paragraph
+   line-heights) and the pill/avatar were never re-derived; the probe
+   tv-scale guard flagged them on every screen. */
+.web-touch .home-profile-pill {
+  min-height: 44px;
+  max-height: 48px;
+  align-items: center;
+}
+
+.web-touch .home-profile-avatar {
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+}
+
+.web-touch .profile-title {
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.web-touch .profile-subtitle {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .profile-hint {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* The hero title is collapsed (max-height:0/opacity:0) in trailer-autoplay
+   mode — a TV design where the logo art carries the identity. On a phone that
+   leaves the smallest text as the only title; show the real one. */
+.web-touch .detail-trailer-autoplay .series-detail-title,
+.web-touch .detail-trailer-manual .series-detail-title {
+  max-height: none;
+  margin-bottom: 12px;
+  opacity: 1;
+}
+
 .web-touch .series-detail-shell {
   --detail-safe-x: 16px;
   --detail-episode-safe-x: 16px;
@@ -583,11 +780,16 @@
   min-height: 48px;
   height: auto;
   flex: 0 0 auto;
-  min-width: 88px;
+  min-width: 96px;
   max-width: 150px;
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 13px;
+  gap: 8px;
+}
+
+.web-touch .settings-nav-leading {
+  gap: 8px;
 }
 
 .web-touch .settings-nav-icon {
@@ -1052,4 +1254,241 @@
 
 .web-touch .player-skip-intro-btn {
   min-height: 44px;
+}
+
+/* Onboarding (profile → experience-mode chooser): the desktop grid is
+   2x minmax(18rem, 28rem) — 576px minimum inside a 390px viewport, which
+   centered the grid off the left edge (first card at x=-85, unreachable).
+   Stack to one column with page padding. */
+.web-touch .experience-mode-options,
+.web-touch .experience-mode-options.is-layout {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 0 16px;
+  max-width: 100%;
+}
+
+.web-touch .experience-mode-card {
+  padding: 14px 16px;
+}
+
+.web-touch .experience-mode-card strong {
+  font-size: 1.05rem;
+}
+
+.web-touch .experience-mode-card span {
+  font-size: 0.85rem;
+}
+
+/* Settings screens had zero touch-tier coverage: ATV dp x 2 throughout
+   (48px title, 28px subtitle, 124px pill rows, 48px icons, 84px account
+   buttons). Re-derive at phone scale. */
+.web-touch .settings-content-header {
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.web-touch .settings-title {
+  font-size: 26px;
+}
+
+.web-touch .settings-subtitle {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .settings-group-card {
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.web-touch .settings-action-row {
+  min-height: 56px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  gap: 12px;
+}
+
+.web-touch .settings-row-leading-icon {
+  width: 22px;
+  height: 22px;
+  font-size: 22px;
+}
+
+.web-touch .settings-row-title {
+  font-size: 16px;
+}
+
+.web-touch .settings-row-subtitle {
+  font-size: 13px;
+  line-height: 18px;
+  /* Phone settings rows keep descriptions to one ellipsized line so tap
+     rows stay in the 56-72px band instead of TV-style wrapped blocks. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+.web-touch .settings-row-badge {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.web-touch .settings-account-action-button {
+  min-height: 52px;
+  padding: 10px 12px;
+  gap: 10px;
+  border-radius: 14px;
+}
+
+.web-touch .settings-account-button-title {
+  font-size: 16px;
+}
+
+.web-touch .settings-account-button-subtitle {
+  font-size: 13px;
+  line-height: 18px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+.web-touch .settings-account-status-value {
+  font-size: 16px;
+}
+
+.web-touch .settings-account-signout-button {
+  min-height: 48px;
+  padding: 12px 14px;
+}
+
+/* Library grid: TV gap token (32/24) at phone scale. */
+.web-touch .library-grid {
+  gap: 16px;
+}
+
+/* ---- Phone compaction pass 2: residual TV-scale chrome ----
+   Measured on 390x844: settings nav labels 26px, nav icons 36px,
+   account-button icon 44px with 24px description prose, search
+   empty-state icon 48px, library page/empty titles 26/22px, hero
+   copy padding 22px. All re-derived at phone scale. */
+.web-touch .settings-title {
+  font-size: 20px;
+  line-height: 24px;
+}
+.web-touch .settings-nav-label {
+  font-size: 13px;
+  line-height: 16px;
+}
+.web-touch .settings-nav-icon,
+.web-touch .settings-nav-icon-material {
+  width: 22px;
+  height: 22px;
+  font-size: 22px;
+}
+.web-touch .settings-account-button-icon {
+  font-size: 26px;
+}
+.web-touch .settings-account-description {
+  font-size: 14px;
+  line-height: 19px;
+}
+.web-touch .settings-account-inline-note {
+  font-size: 13px;
+  line-height: 18px;
+}
+.web-touch .search-empty-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+}
+.web-touch .search-action-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+.web-touch .library-page-title {
+  font-size: 19px;
+  line-height: 23px;
+}
+.web-touch .library-empty-title {
+  font-size: 16px;
+  line-height: 21px;
+}
+.web-touch .library-picker-row,
+.web-touch .library-picker,
+.web-touch .library-picker-anchor {
+  min-height: 44px;
+  height: 44px;
+}
+.web-touch .home-hero-card,
+.web-touch .home-modern-hero-card {
+  padding: 14px;
+}
+.web-touch .home-hero-logo,
+.web-touch .home-hero-brand {
+  height: 44px;
+  max-height: 44px;
+}
+.web-touch .home-hero-modern .home-hero-description {
+  font-size: 13px;
+  line-height: 19px;
+}
+.web-touch .home-nav-icon-wrap {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+.web-touch .home-modern-row + .home-modern-row {
+  margin-top: 6px;
+}
+
+/* ---- Height-adaptive phone tiers ----
+   Portrait Safari loses ~150px of dvh to browser chrome; landscape phones
+   get only ~390px of height. Re-budget the vertical stack instead of
+   letting posters slide under the bottom nav. */
+@media (max-height: 760px) {
+  .web-touch .home-hero-modern .home-hero-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+  .web-touch .home-hero-logo,
+  .web-touch .home-hero-brand {
+    height: 36px;
+    max-height: 36px;
+  }
+}
+
+@media (max-height: 520px) {
+  /* Landscape phones: shrink poster tokens (JS sets these inline) so a
+     row title + card + peek fit inside the shortened rows viewport. */
+  .web-touch .home-screen-shell.home-layout-modern {
+    --modern-rows-viewport-height: 62%;
+    --home-poster-width: 84px !important;
+    --home-poster-height: 126px !important;
+    --home-modern-portrait-poster-width: 84px !important;
+    --home-modern-portrait-poster-height: 126px !important;
+  }
+  .web-touch .home-hero-modern .home-hero-description {
+    display: none;
+  }
+  .web-touch .home-hero-logo,
+  .web-touch .home-hero-brand {
+    height: 28px;
+    max-height: 28px;
+  }
+  .web-touch {
+    --touch-nav-height: 52px;
+  }
+  .web-touch .home-nav-label {
+    display: none;
+  }
+  .web-touch .home-nav-item {
+    height: 40px;
+  }
 }
