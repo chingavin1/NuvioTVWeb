@@ -1492,3 +1492,333 @@
     height: 40px;
   }
 }
+
+/* ==========================================================================
+   ACTIVE GOAL phone-scale pass (2026-11-21): profile picker, profile
+   editor/PIN overlays, detail episode selection, residual detail chrome.
+   Grounded in the live-DOM audit (scripts/probes/scale-audit.mjs): picker
+   avatars rendered 185px/fs72 with 44px gaps; editor buttons collapsed to
+   5px (min(xvw,px) tokens win the vw branch at 390px); episode cards were
+   560x358 with fs32 titles and 220x88 season buttons on a 390px viewport.
+   ========================================================================== */
+
+/* --- Profile picker ("Who's watching?", also boot landing) --- */
+.web-touch #profileSelection .profile-title {
+  font-size: 20px;
+  line-height: 26px;
+}
+.web-touch #profileSelection .profile-subtitle {
+  font-size: 14px;
+}
+.web-touch #profileSelection img.theme-brand-wordmark {
+  max-height: 44px;
+  width: auto;
+}
+.web-touch #profileSelection .profile-grid {
+  gap: 18px;
+  min-height: 0;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+.web-touch #profileSelection .profile-card {
+  width: 158px;
+  padding: 6px 8px;
+}
+.web-touch #profileSelection .profile-avatar-ring {
+  width: 128px;
+  height: 128px;
+  margin: 8px auto;
+}
+.web-touch #profileSelection .profile-card.focused .profile-avatar-ring {
+  width: 136px;
+  height: 136px;
+  border-width: 4px;
+}
+.web-touch #profileSelection .profile-avatar {
+  width: 112px;
+  height: 112px;
+  font-size: 42px;
+}
+.web-touch #profileSelection .profile-primary-dot {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+.web-touch #profileSelection .profile-name {
+  font-size: 16px;
+  line-height: 1.3;
+}
+.web-touch #profileSelection .profile-badge {
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 3px 8px;
+}
+.web-touch #profileSelection .profile-hint {
+  font-size: 12px;
+}
+
+/* --- Profile editor overlay: the min(xvw,px) tokens collapse at 390px --- */
+.web-touch #profileSelection .profile-editor-panel {
+  width: calc(100vw - 24px);
+  max-width: 390px;
+  max-height: calc(100dvh - 24px);
+  padding: 14px;
+  border-radius: 16px;
+}
+.web-touch #profileSelection .profile-editor-header {
+  gap: 12px;
+  padding-left: 0;
+}
+.web-touch #profileSelection .profile-editor-heading-title {
+  font-size: 18px;
+}
+.web-touch #profileSelection .profile-editor-heading-kicker {
+  font-size: 12px;
+}
+.web-touch #profileSelection .profile-editor-body {
+  flex-direction: column;
+  gap: 12px;
+}
+.web-touch #profileSelection .profile-editor-preview {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: auto;
+}
+.web-touch #profileSelection .profile-editor-preview-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+.web-touch #profileSelection .profile-editor-preview-name {
+  font-size: 15px;
+}
+.web-touch #profileSelection .profile-editor-divider {
+  display: none;
+}
+.web-touch #profileSelection .profile-editor-picker-pane,
+.web-touch #profileSelection .profile-editor-avatar-pane,
+.web-touch #profileSelection .profile-editor-background-pane {
+  width: 100%;
+  max-height: 34dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.web-touch #profileSelection .profile-editor-field-shell {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.web-touch #profileSelection .profile-editor-preview-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.web-touch #profileSelection .profile-editor-avatar-title {
+  font-size: 13px;
+}
+.web-touch #profileSelection .profile-editor-avatar-hint {
+  font-size: 12px;
+}
+.web-touch #profileSelection .profile-editor-name-input {
+  min-height: 44px;
+  font-size: 16px;
+}
+.web-touch #profileSelection .profile-overlay-button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+}
+.web-touch #profileSelection .profile-editor-tabs {
+  gap: 8px;
+}
+.web-touch #profileSelection .profile-editor-tab {
+  min-height: 44px;
+  font-size: 14px;
+}
+.web-touch #profileSelection .profile-editor-category-row {
+  gap: 8px;
+  height: auto;
+}
+.web-touch #profileSelection .profile-avatar-category {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 0 12px;
+}
+.web-touch #profileSelection .profile-editor-avatar-grid {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-avatar-tile {
+  width: 64px;
+  height: 64px;
+}
+.web-touch #profileSelection .profile-background-grid {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-background-tile {
+  height: 56px;
+}
+
+/* --- Profile PIN overlay --- */
+.web-touch #profileSelection .profile-pin-layer {
+  padding: 0 20px;
+}
+.web-touch #profileSelection .profile-pin-heading {
+  font-size: 22px;
+  line-height: 28px;
+}
+.web-touch #profileSelection .profile-pin-box {
+  width: 44px;
+  height: 52px;
+}
+.web-touch #profileSelection .profile-pin-keypad {
+  grid-template-columns: repeat(3, 72px);
+  grid-auto-rows: 56px;
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-pin-key {
+  font-size: 22px;
+  border-radius: 10px;
+}
+.web-touch #profileSelection .profile-pin-support {
+  font-size: 13px;
+}
+.web-touch #profileSelection .profile-pin-forgot,
+.web-touch #profileSelection .profile-pin-back-hint {
+  font-size: 12px;
+}
+
+/* --- Detail episode selection (series detail) --- */
+.web-touch .series-season-row {
+  gap: 10px;
+  padding-top: 12px;
+  padding-bottom: 6px;
+}
+.web-touch .series-season-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+  line-height: 1;
+}
+.web-touch .series-episode-track {
+  gap: 12px;
+  padding: 12px 16px;
+}
+.web-touch .series-episode-card {
+  flex: 0 0 300px;
+  width: 300px;
+  border-radius: 14px;
+}
+.web-touch .series-episode-thumb {
+  height: 169px;
+  border-radius: 14px;
+}
+.web-touch .series-episode-copy {
+  padding: 10px 12px 12px;
+  gap: 6px;
+  border-radius: 0 0 14px 14px;
+}
+.web-touch .series-episode-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  line-height: 1.2;
+}
+.web-touch .series-episode-title {
+  min-height: 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.web-touch .series-episode-overview {
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.web-touch .series-episode-meta {
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.web-touch .series-episode-meta .series-imdb-badge {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.web-touch .series-episode-date {
+  white-space: nowrap;
+}
+
+/* --- Detail residual chrome from the 390x844 audit --- */
+.web-touch .series-insight-tabs {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.web-touch .series-insight-tab {
+  min-height: 44px;
+  font-size: 14px;
+}
+.web-touch .detail-meta-row {
+  gap: 12px;
+}
+.web-touch .detail-meta-row.secondary {
+  gap: 12px;
+}
+.web-touch .detail-meta-stack .series-imdb-badge img {
+  width: 32px;
+  height: 16px;
+}
+.web-touch .detail-synopsis-more {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.web-touch .series-detail-description {
+  line-height: 1.5;
+}
+.web-touch .movie-cast-avatar {
+  width: 64px;
+  height: 64px;
+}
+.web-touch .movie-cast-card {
+  width: 84px;
+}
+.web-touch .series-cast-track .movie-cast-card,
+.web-touch .series-cast-track article {
+  width: 84px;
+}
+.web-touch .movie-cast-avatar .movie-cast-avatar-fallback,
+.web-touch span.movie-cast-avatar-fallback {
+  font-size: 20px;
+}
+.web-touch .series-episode-track,
+.web-touch .series-cast-track,
+.web-touch .movie-cast-track {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Landscape phones: keep the picker compact vertically too. */
+@media (max-height: 520px) {
+  .web-touch #profileSelection .profile-avatar-ring {
+    width: 96px;
+    height: 96px;
+  }
+  .web-touch #profileSelection .profile-avatar {
+    width: 84px;
+    height: 84px;
+    font-size: 32px;
+  }
+  .web-touch #profileSelection .profile-card {
+    width: 130px;
+  }
+  .web-touch #profileSelection .profile-name {
+    font-size: 14px;
+  }
+  .web-touch .series-episode-card {
+    flex-basis: 240px;
+    width: 240px;
+  }
+  .web-touch .series-episode-thumb {
+    height: 135px;
+  }
+}
