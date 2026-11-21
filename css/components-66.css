@@ -780,11 +780,16 @@
   min-height: 48px;
   height: auto;
   flex: 0 0 auto;
-  min-width: 88px;
+  min-width: 96px;
   max-width: 150px;
   padding: 8px 12px;
   border-radius: 12px;
   font-size: 13px;
+  gap: 8px;
+}
+
+.web-touch .settings-nav-leading {
+  gap: 8px;
 }
 
 .web-touch .settings-nav-icon {
@@ -1363,4 +1368,80 @@
 /* Library grid: TV gap token (32/24) at phone scale. */
 .web-touch .library-grid {
   gap: 16px;
+}
+
+/* ---- Phone compaction pass 2: residual TV-scale chrome ----
+   Measured on 390x844: settings nav labels 26px, nav icons 36px,
+   account-button icon 44px with 24px description prose, search
+   empty-state icon 48px, library page/empty titles 26/22px, hero
+   copy padding 22px. All re-derived at phone scale. */
+.web-touch .settings-title {
+  font-size: 20px;
+  line-height: 24px;
+}
+.web-touch .settings-nav-label {
+  font-size: 13px;
+  line-height: 16px;
+}
+.web-touch .settings-nav-icon,
+.web-touch .settings-nav-icon-material {
+  width: 22px;
+  height: 22px;
+  font-size: 22px;
+}
+.web-touch .settings-account-button-icon {
+  font-size: 26px;
+}
+.web-touch .settings-account-description {
+  font-size: 14px;
+  line-height: 19px;
+}
+.web-touch .settings-account-inline-note {
+  font-size: 13px;
+  line-height: 18px;
+}
+.web-touch .search-empty-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+}
+.web-touch .search-action-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+.web-touch .library-page-title {
+  font-size: 19px;
+  line-height: 23px;
+}
+.web-touch .library-empty-title {
+  font-size: 16px;
+  line-height: 21px;
+}
+.web-touch .library-picker-row,
+.web-touch .library-picker,
+.web-touch .library-picker-anchor {
+  min-height: 44px;
+  height: 44px;
+}
+.web-touch .home-hero-card,
+.web-touch .home-modern-hero-card {
+  padding: 14px;
+}
+.web-touch .home-hero-logo,
+.web-touch .home-hero-brand {
+  height: 44px;
+  max-height: 44px;
+}
+.web-touch .home-hero-modern .home-hero-description {
+  font-size: 13px;
+  line-height: 19px;
+}
+.web-touch .home-nav-icon-wrap {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+}
+.web-touch .home-modern-row + .home-modern-row {
+  margin-top: 6px;
 }
