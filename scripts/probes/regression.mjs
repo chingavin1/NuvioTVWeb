@@ -12,13 +12,16 @@ import { fileURLToPath } from "node:url";
 
 const BASE_URL = (process.env.BASE_URL || "http://127.0.0.1:4173").replace(/\/+$/, "");
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const VW = 390,
-  VH = 844,
+// Viewport override for the 3-viewport verification pass (T8):
+//   VW=390 VH=660 npm run test:mobile-web   (real portrait Safari height)
+//   VW=844 VH=390 npm run test:mobile-web   (landscape phone)
+const VW = Number(process.env.VW) || 390,
+  VH = Number(process.env.VH) || 844,
   OVER = 4;
 
-const AUDIT = (scopeSelector) => {
-  const VW = 390,
-    VH = 844,
+const AUDIT = (arg) => {
+  const scopeSelector = typeof arg === "string" ? arg : arg.scope;
+  const VW = (typeof arg === "object" && arg.vw) || 390,
     OVER = 4;
   const root = scopeSelector ? document.querySelector(scopeSelector) : document.body;
   if (!root) return { missing: scopeSelector };
@@ -151,7 +154,7 @@ const AUDIT = (scopeSelector) => {
 
 const results = [];
 async function audit(page, label, scope) {
-  const fails = await page.evaluate(AUDIT, scope || "");
+  const fails = await page.evaluate(AUDIT, { scope: scope || "", vw: VW, vh: VH });
   const ok = Array.isArray(fails) && fails.length === 0;
   results.push({ label, ok, fails: Array.isArray(fails) ? fails : [fails] });
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${ok ? "" : " " + JSON.stringify(fails)}`);
@@ -239,10 +242,35 @@ async function holdGate(
   minLeft = 40
 ) {
   const findCard = ({ sel, minLeft }) => {
+    // Bottom margin derives from the real nav's top edge — but only when the
+    // nav is the horizontal bottom bar. Landscape phones render a vertical
+    // side rail whose rect top is ~0; there, keep a generic bottom margin.
+    const navCandidates = [...document.querySelectorAll(".home-nav-list")].filter(
+      (e) => e.offsetParent
+    );
+    const nav = navCandidates
+      .map((e) => e.getBoundingClientRect())
+      .find((r) => r.width > innerWidth / 2 && r.top > innerHeight / 2);
+    const navTop = nav ? nav.top : innerHeight - 74;
+    // Top margin tracks the sticky header bottom where one exists (search,
+    // discover, library, see-all): require the card CENTER below the header
+    // (the hold tap lands at center); 140 stays the fallback for the home hero.
+    const header = document.querySelector(
+      ".seeall-header,.search-header,.library-header,.detail-header"
+    );
+    const headerBottom =
+      header && header.offsetParent ? header.getBoundingClientRect().bottom : null;
+    const topOk = (r) =>
+      (r.top + r.bottom) / 2 >
+      (headerBottom !== null ? headerBottom + 8 : Math.min(140, innerHeight * 0.22));
     const c = [...document.querySelectorAll(sel)].find((n) => {
       const r = n.getBoundingClientRect();
       return (
-        r.left > minLeft && r.right < innerWidth - 10 && r.top > 140 && r.bottom < innerHeight - 130
+        r.left > minLeft &&
+        r.right < innerWidth - 10 &&
+        topOk(r) &&
+        r.bottom < navTop &&
+        (r.top + r.bottom) / 2 < navTop - 8
       );
     });
     if (!c) return null;
@@ -279,23 +307,45 @@ async function holdGate(
         {
           kind: "hold",
           why: "no poster card found",
-          snap: await page.evaluate(() => ({
-            body: document.body.innerText.replace(/\s+/g, " ").slice(0, 140),
-            first: (() => {
-              const c = document.querySelector(
-                ".library-grid-card,.discover-card,.home-poster-card"
-              );
-              if (!c) return null;
-              const r = c.getBoundingClientRect();
-              return {
-                vis: Boolean(c.offsetParent),
-                x: Math.round(r.x),
-                y: Math.round(r.y),
-                w: Math.round(r.width),
-                h: Math.round(r.height)
-              };
-            })()
-          }))
+          snap: await page.evaluate(
+            (gsel) => ({
+              gateCount: document.querySelectorAll(gsel).length,
+              gateFirst3: [...document.querySelectorAll(gsel)].slice(0, 3).map((g) => {
+                const gr = g.getBoundingClientRect();
+                return {
+                  x: Math.round(gr.x),
+                  y: Math.round(gr.y),
+                  w: Math.round(gr.width),
+                  h: Math.round(gr.height),
+                  op: g.offsetParent !== null
+                };
+              }),
+              headerCls: (() => {
+                const h = document.querySelector(
+                  ".seeall-header,.search-header,.library-header,.detail-header"
+                );
+                return h
+                  ? h.className.split(" ")[0] + "@" + Math.round(h.getBoundingClientRect().bottom)
+                  : null;
+              })(),
+              body: document.body.innerText.replace(/\s+/g, " ").slice(0, 140),
+              first: (() => {
+                const c = document.querySelector(
+                  ".library-grid-card,.discover-card,.home-poster-card"
+                );
+                if (!c) return null;
+                const r = c.getBoundingClientRect();
+                return {
+                  vis: Boolean(c.offsetParent),
+                  x: Math.round(r.x),
+                  y: Math.round(r.y),
+                  w: Math.round(r.width),
+                  h: Math.round(r.height)
+                };
+              })()
+            }),
+            cardSelector
+          )
         }
       ]
     };
@@ -618,7 +668,13 @@ if (!harnessOnly) {
   if (await disc.count()) {
     await disc.tap().catch(() => {});
     await page.waitForTimeout(2500);
-    const discHold = await holdGate(page, '.discover-card[data-action="openDetail"]', true, true);
+    const discHold = await holdGate(
+      page,
+      '.discover-card[data-action="openDetail"]',
+      true,
+      true,
+      12
+    );
     reportHold("discover-hold-menu", discHold.skipped ? null : discHold.problems);
     // Seed the guest library from the still-open menu (LOCAL source mode) so
     // the library-hold gate cannot hide behind an empty-grid skip.
@@ -708,7 +764,7 @@ if (!harnessOnly) {
     if (!chip || !manage || !(await page.locator(".profile-card").count())) {
       problems.push({ kind: "profile-picker", why: "manage entry not reachable", chip, manage });
     } else {
-      for (const f of await page.evaluate(AUDIT, "#profileSelection"))
+      for (const f of await page.evaluate(AUDIT, { scope: "#profileSelection", vw: VW, vh: VH }))
         problems.push({ ...f, screen: "profile-picker" });
       const scale = await page.evaluate(() => {
         const box = (s) => {
@@ -745,7 +801,11 @@ if (!harnessOnly) {
       if (!(await page.locator(".profile-editor-panel").count())) {
         problems.push({ kind: "profile-editor-missing" });
       } else {
-        for (const f of await page.evaluate(AUDIT, ".profile-editor-backdrop"))
+        for (const f of await page.evaluate(AUDIT, {
+          scope: ".profile-editor-backdrop",
+          vw: VW,
+          vh: VH
+        }))
           problems.push({ ...f, screen: "profile-editor" });
         const floor = await page.evaluate(() => {
           const hs = [
@@ -805,7 +865,7 @@ if (!harnessOnly) {
         `${nCards === 0 ? "SKIP" : "FAIL"} detail-episodes${nCards === 0 ? " (no home cards to seed)" : " " + JSON.stringify(problems)}`
       );
     } else {
-      for (const f of await page.evaluate(AUDIT, "#detail"))
+      for (const f of await page.evaluate(AUDIT, { scope: "#detail", vw: VW, vh: VH }))
         problems.push({ ...f, screen: "detail-episodes" });
       const scale = await page.evaluate(() => {
         const vw = window.innerWidth;
