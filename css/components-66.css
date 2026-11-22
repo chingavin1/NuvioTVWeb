@@ -1624,6 +1624,103 @@
   }
 }
 
+/* --- Cast detail (castDetailScreen) on phones ---
+   TV geometry from Android TV CastDetailScreen: 96px gutters, 220x320
+   avatar next to a 48px name, 248x372 credit posters, 34px section titles,
+   28px loading/error text. Phone tier: single-column hero, 104px credit
+   posters (2:3), 15px titles, 16px status text. */
+.web-touch .cast-detail-shell {
+  padding: 12px var(--touch-gutter) calc(var(--touch-nav-height) + var(--touch-safe-bottom) + 20px);
+}
+
+.web-touch .cast-detail-loading,
+.web-touch .cast-detail-error {
+  margin-top: 18vh;
+  font-size: 16px;
+}
+
+.web-touch .cast-detail-loading .nuvio-loading-indicator {
+  width: 48px;
+  height: 48px;
+}
+
+.web-touch .cast-detail-back {
+  width: 44px;
+  height: 44px;
+}
+
+.web-touch .cast-detail-hero-content {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.web-touch .cast-detail-avatar {
+  width: 130px;
+  height: 195px;
+  border-radius: 12px;
+}
+
+.web-touch .cast-detail-name {
+  margin: 2px 0 8px;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.web-touch .cast-detail-facts {
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.web-touch .cast-detail-facts span {
+  height: 28px;
+  padding: 0 10px;
+}
+
+.web-touch .cast-detail-bio {
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.web-touch .cast-detail-section-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.web-touch .cast-credit-section + .cast-credit-section {
+  margin-top: 20px;
+}
+
+.web-touch .cast-credit-track {
+  gap: 10px;
+}
+
+.web-touch .cast-credit-card {
+  flex: 0 0 104px;
+  width: 104px;
+  min-width: 104px;
+}
+
+.web-touch .cast-credit-poster {
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+}
+
+.web-touch .cast-credit-title {
+  min-height: 0;
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 19px;
+}
+
+.web-touch .cast-credit-subtitle {
+  font-size: 13px;
+  line-height: 16px;
+}
+
 /* ==========================================================================
    ACTIVE GOAL phone-scale pass (2026-11-21): profile picker, profile
    editor/PIN overlays, detail episode selection, residual detail chrome.

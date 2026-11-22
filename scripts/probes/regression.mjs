@@ -652,6 +652,29 @@ if (!harnessOnly) {
   await page.evaluate(() => document.querySelector(".home-track .home-poster-card")?.click());
   await page.waitForTimeout(2500);
   await audit(page, "detail");
+  // Cast detail (castDetailScreen): reached from the detail cast row. Guest
+  // data may fail to load — the error/loading state is itself part of the
+  // phone tier and gets audited either way.
+  const castEntry = page.locator('[data-action="openCastDetail"]').first();
+  if (await castEntry.count()) {
+    await castEntry.tap().catch(() => {});
+    await page.waitForTimeout(2500);
+    await audit(page, "cast");
+    const castShell = await page.evaluate(() => {
+      const s = document.querySelector(".cast-detail-shell");
+      return Boolean(s && s.offsetParent);
+    });
+    if (!castShell)
+      results.push({
+        label: "cast-route",
+        ok: false,
+        fails: [{ kind: "route", why: "openCastDetail did not render .cast-detail-shell" }]
+      });
+    else results.push({ label: "cast-route", ok: true, fails: [] });
+    console.log(`${castShell ? "PASS" : "FAIL"} cast-route`);
+    await page.evaluate(() => document.querySelector(".cast-detail-back")?.click());
+    await page.waitForTimeout(1500);
+  }
 
   await gotoHome(page);
   await navTo(page, "Search");
