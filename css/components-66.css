@@ -1721,6 +1721,204 @@
   line-height: 16px;
 }
 
+/* --- Add-ons / plugins management on phones (addons + plugins routes) ---
+   TV scale from Android TV AddonsScreen/PluginsScreen: 48px title, 28px
+   lede, 144px-tall 40px-padded large rows with 48/42px icons, 88px-tall
+   28px action buttons, 104x64 toggles, 168px setting rows, 40px headings.
+   Shell gutters already clamp to phone; these fix the interiors. */
+.web-touch .addons-title {
+  margin: 0 0 16px;
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.web-touch .addons-lede {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .addons-meta {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .addons-sync-status {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .addons-install-card {
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.web-touch .addons-install-heading {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.web-touch .addons-large-row {
+  min-height: 64px;
+  margin-top: 12px;
+  border-radius: 16px;
+  grid-template-columns: 24px minmax(0, 1fr) 22px;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.web-touch .addons-large-row-icon {
+  font-size: 24px;
+}
+
+.web-touch .addons-large-row-copy strong {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .addons-large-row-copy small {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .addons-large-row-tail {
+  font-size: 22px;
+}
+
+.web-touch .addons-large-row-badge {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.web-touch .plugins-runtime-card,
+.web-touch .plugins-settings-card,
+.web-touch .plugins-repository-card,
+.web-touch .plugins-preserved-card,
+.web-touch .plugins-readonly-card,
+.web-touch .plugins-confirm-dialog {
+  border-radius: 16px;
+}
+
+.web-touch .plugins-runtime-card {
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.web-touch .plugins-runtime-icon {
+  font-size: 24px;
+}
+
+.web-touch .plugins-runtime-copy strong {
+  font-size: 15px;
+}
+
+.web-touch .plugins-runtime-copy span {
+  font-size: 13px;
+}
+
+.web-touch .plugins-readonly-card {
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  font-size: 13px;
+}
+
+.web-touch .plugins-readonly-icon {
+  font-size: 22px;
+}
+
+.web-touch .plugins-settings-card {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.web-touch .plugins-empty-card {
+  padding: 20px 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .plugins-section-heading {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.web-touch .plugins-section-heading h2,
+.web-touch .plugins-repository-copy h2,
+.web-touch .plugins-section-label h2 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.web-touch .plugins-section-heading p {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .plugins-section-label {
+  margin: 0 0 12px;
+}
+
+.web-touch .plugins-setting-row {
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+}
+
+.web-touch .plugins-setting-row strong,
+.web-touch .plugins-provider-copy strong {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .plugins-setting-row span,
+.web-touch .plugins-provider-copy span {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .plugins-add-row {
+  gap: 10px;
+}
+
+.web-touch .plugins-repository-input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.web-touch .plugins-action {
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  white-space: normal;
+}
+
+.web-touch .plugins-action .material-icons {
+  font-size: 20px;
+}
+
+.web-touch .plugins-toggle {
+  width: 64px;
+  min-width: 64px;
+  height: 38px;
+  padding: 4px;
+}
+
+.web-touch .plugins-toggle-pill {
+  padding: 6px;
+}
+
+.web-touch .plugins-toggle-pill > span {
+  width: 26px;
+  height: 26px;
+}
+
 /* ==========================================================================
    ACTIVE GOAL phone-scale pass (2026-11-21): profile picker, profile
    editor/PIN overlays, detail episode selection, residual detail chrome.

@@ -757,6 +757,65 @@ if (!harnessOnly) {
   await page.waitForTimeout(1500);
   await audit(page, "settings-player");
 
+  // Add-ons and plugins management routes, reached from the Settings
+  // landing drill-down rows (data-focus-key rows, not .settings-nav-item).
+  for (const [label, rowKey, shellSel] of [
+    ["addons", "contentDiscovery:addons", ".addons-route-shell"],
+    ["plugins", "contentDiscovery:plugins", ".plugins-route-shell"]
+  ]) {
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('[data-focus-key^="nav:"]')].find((n) =>
+        /content/i.test(n.innerText || "")
+      );
+      if (nav) {
+        nav.scrollIntoView({ block: "center" });
+        nav.click();
+      }
+    });
+    await page.waitForTimeout(1500);
+    const rowOk = await page.evaluate((k) => {
+      const row = document.querySelector(`[data-focus-key="${k}"]`);
+      if (!row) return false;
+      row.scrollIntoView({ block: "center" });
+      const rc = row.getBoundingClientRect();
+      row.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      row.click();
+      return true;
+    }, rowKey);
+    if (!rowOk) {
+      results.push({ label, ok: true, fails: [], skipped: true });
+      console.log(`SKIP ${label} (entry row not present in this mode)`);
+      continue;
+    }
+    await page.waitForTimeout(2500);
+    const shellOk = await page.evaluate(
+      (sel) => Boolean(document.querySelector(sel)?.offsetParent),
+      shellSel
+    );
+    if (!shellOk) {
+      results.push({
+        label,
+        ok: false,
+        fails: [{ kind: "route", why: `${rowKey} did not render ${shellSel}` }]
+      });
+      console.log(
+        `FAIL ${label} ${JSON.stringify([{ kind: "route", why: `${rowKey} did not render ${shellSel}` }])}`
+      );
+    } else {
+      await audit(page, label);
+    }
+    await page.goBack().catch(() => {});
+    await page.waitForTimeout(900);
+  }
+
   // Profile tier gates. The boot-time "Who's watching?" landing only
   // auto-mounts with a reachable profile-sync backend; Settings -> Profiles
   // chip -> Manage Profiles mounts the SAME #profileSelection screen, so the
