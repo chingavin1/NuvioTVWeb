@@ -90,9 +90,19 @@ const AUDIT = (arg) => {
       (el.innerText || "").trim() &&
       ![...el.children].some((c) => (c.innerText || "").trim() === (el.innerText || "").trim())
   );
+  // Leaves pushed outside an overflow-clip parent (marquee transforms)
+  // report rects they do not visibly occupy; exclude them up front.
+  const clippedLeaf = (el, r) => {
+    const p = el.parentElement;
+    if (!p) return false;
+    const st = getComputedStyle(p);
+    if (!/hidden|clip|auto/.test(st.overflowX + st.overflowY)) return false;
+    const pr = p.getBoundingClientRect();
+    return r.left < pr.left - 2 || r.right > pr.right + 2;
+  };
   const rects = texts
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
-    .filter((x) => x.r.width > 2 && x.r.height > 2);
+    .filter((x) => x.r.width > 2 && x.r.height > 2 && !clippedLeaf(x.el, x.r));
   const hits = [];
   // Overlay layers in the player are separate states (controls vs seek overlay
   // vs skip-intro vs episode panel vs modal). Their texts only coexist in the
@@ -106,6 +116,21 @@ const AUDIT = (arg) => {
       const a = rects[i],
         b = rects[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      // Marquee labels are transformed inside an overflow-hidden clip;
+      // their raw rects extend past the visible window and produce
+      // phantom overlaps against neighbouring icons.
+      if (
+        a.el.closest('[class*="marquee"]') &&
+        a.el.parentElement &&
+        a.el.parentElement.getBoundingClientRect().width < a.r.width
+      )
+        continue;
+      if (
+        b.el.closest('[class*="marquee"]') &&
+        b.el.parentElement &&
+        b.el.parentElement.getBoundingClientRect().width < b.r.width
+      )
+        continue;
       const la = layerOf(a.el),
         lb = layerOf(b.el);
       if (la && lb && la !== lb) continue;
@@ -130,6 +155,10 @@ const AUDIT = (arg) => {
       // Collapsible groups put option stacks INSIDE the row element; its
       // height tracks content and is not a tap-target scale signal.
       if (el.querySelector('button,[role="button"],.focusable,input,select')) continue;
+      // Settings rows are content-height buttons (title+subtitle wrap at
+      // phone width); their scale signal is the copy type, caught by the
+      // font/line-height guards, not the button height.
+      if (el.querySelector(".settings-row-copy")) continue;
       const h = el.getBoundingClientRect().height;
       if (h > 72)
         fails.push({
@@ -814,6 +843,96 @@ if (!harnessOnly) {
     }
     await page.goBack().catch(() => {});
     await page.waitForTimeout(900);
+  }
+
+  // Integration hub (in-settings views) + dedicated Trakt route.
+  {
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    const hubRow = await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('[data-focus-key^="nav:"]')].find((n) =>
+        /integration/i.test((n.getAttribute("data-focus-key") || "") + " " + (n.innerText || ""))
+      );
+      if (!nav) return false;
+      nav.scrollIntoView({ block: "center" });
+      const rc = nav.getBoundingClientRect();
+      nav.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      nav.click();
+      return true;
+    });
+    if (hubRow) {
+      await page.waitForTimeout(1800);
+      await audit(page, "integration-hub");
+      const tmdbRow = await page.evaluate(() => {
+        const row = document.querySelector('[data-focus-key="integration:hub:tmdb"]');
+        if (!row) return false;
+        row.scrollIntoView({ block: "center" });
+        const rc = row.getBoundingClientRect();
+        row.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            clientX: rc.left + rc.width / 2,
+            clientY: rc.top + rc.height / 2
+          })
+        );
+        row.click();
+        return true;
+      });
+      if (tmdbRow) {
+        await page.waitForTimeout(1800);
+        await audit(page, "integration-tmdb");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP integration-hub (nav row absent)");
+    }
+    const traktRow = await page.evaluate(() => {
+      const n = document.querySelector('[data-focus-key="nav:trakt"]');
+      if (!n) return false;
+      n.scrollIntoView({ block: "center" });
+      const rc = n.getBoundingClientRect();
+      n.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      n.click();
+      return true;
+    });
+    if (traktRow) {
+      await page.waitForTimeout(2500);
+      // nav:trakt is the in-settings Trakt section (device-auth flow); the
+      // dedicated traktScreen route only mounts after a connection exists
+      // (trakt:open), so the guest-reachable surface is the section.
+      const traktSection = await page.evaluate(() =>
+        Boolean(document.querySelector('[class*="settings-trakt"]')?.offsetParent)
+      );
+      if (!traktSection) {
+        results.push({
+          label: "trakt",
+          ok: false,
+          fails: [{ kind: "route", why: "nav:trakt rendered no settings-trakt section" }]
+        });
+        console.log(
+          'FAIL trakt [{"kind":"route","why":"nav:trakt rendered no settings-trakt section"}]'
+        );
+      } else {
+        await audit(page, "trakt");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP trakt (nav row absent)");
+    }
   }
 
   // Profile tier gates. The boot-time "Who's watching?" landing only

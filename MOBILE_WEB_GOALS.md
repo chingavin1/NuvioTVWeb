@@ -34,7 +34,7 @@ User directive: downscale UI elements to phone scale everywhere, explicitly incl
 - [ ] Catalog "see all" grid (`catalogSeeAllScreen`) — currently DPAD-grid keyed
 - [x] Cast screen (`castDetailScreen`) on touch: phone-tier CSS in components-66 (16px gutters, single-col hero, 130x195 avatar, 104x156 credit posters 2:3, 24/18/15px copy, 16px status); regression gates `cast` + `cast-route` (guest data errors → error state audited; loaded-state sizes grounded in components-51/52 TV rules)
 - [x] Plugins/add-ons management (`plugin`) on touch tier: addons+plugins route interiors were pure TV scale (48px title, 28px lede, 144px large rows, 88px actions, 104x64 toggles, 40px headings, 28px empty-card copy); phone-tier CSS in components-66 + `addons`/`plugins` regression gates
-- [ ] TMDB/Trakt connect flows (NuvioMobile surfaces these in settings)
+- [x] TMDB/Trakt connect flows (NuvioMobile surfaces these in settings): integration hub + TMDB detail views pass geometry gates; settings Trakt device-auth section phone-scaled (48/28px TV hero type -> 20/14px); traktScreen route stays account-gated
 - [ ] Account/membership screen (`accountScreen`, `membershipOverviewRepository`) on touch
 
 ## Phase 3 — Mobile-web shell behaviors the app has but the browser lacks

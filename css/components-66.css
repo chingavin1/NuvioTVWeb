@@ -1840,6 +1840,33 @@
   line-height: 18px;
 }
 
+/* --- Trakt connect section in Settings on phones ---
+   Shares the TV Trakt panel's classes (components-22: 48px title, 28px
+   description/connected text, 96px logo). Phone tier for the settings
+   hero copy; the standalone route surface keeps TV sizes until an
+   authenticated session can render it on a phone. */
+.web-touch .settings-trakt-title {
+  margin-top: 12px;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.web-touch .settings-trakt-description {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .settings-trakt-connected {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.web-touch .settings-trakt-logo {
+  width: 56px;
+  height: 56px;
+}
+
 .web-touch .plugins-section-heading {
   gap: 12px;
   margin-bottom: 12px;
