@@ -19,6 +19,21 @@ const VW = Number(process.env.VW) || 390,
   VH = Number(process.env.VH) || 844,
   OVER = 4;
 
+// The app checks NuvioMedia/NuvioTVSmart's GitHub releases on startup and
+// raises a modal update prompt when upstream is ahead. That external state
+// changes independently of the app build (it started firing ~24h ago and
+// silently broke the swipe/hold/auth gates by stealing gestures and taps).
+// Probe sessions must be deterministic: neutralize that one endpoint.
+const NEUTRAL_UPDATE_CHECK = () => {
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (input, ...rest) => {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.includes("/repos/NuvioMedia/NuvioTVSmart/releases"))
+      return Promise.resolve(new Response("probe: update check disabled", { status: 503 }));
+    return realFetch(input, ...rest);
+  };
+};
+
 const AUDIT = (arg) => {
   const scopeSelector = typeof arg === "string" ? arg : arg.scope;
   const VW = (typeof arg === "object" && arg.vw) || 390,
@@ -526,6 +541,7 @@ async function authPhoneGate(browser) {
   const opts = { viewport: { width: VW, height: VH }, hasTouch: true, isMobile: true };
 
   const ctxA = await browser.newContext(opts);
+  await ctxA.addInitScript(NEUTRAL_UPDATE_CHECK);
   const a = await ctxA.newPage();
   await a.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
   await a.waitForSelector("#qr-container, #auth-email-form", { timeout: 20000 }).catch(() => {});
@@ -562,6 +578,7 @@ async function authPhoneGate(browser) {
   // Desktop web parity: the TV-canvas rule (longer side >=1440) keeps the
   // stock QR canvas path; the one-time-link block is phone/compact tier only.
   const ctxD = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctxD.addInitScript(NEUTRAL_UPDATE_CHECK);
   const d = await ctxD.newPage();
   await d.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
   await d.waitForSelector("#qr-container canvas", { timeout: 20000 }).catch(() => {});
@@ -573,6 +590,7 @@ async function authPhoneGate(browser) {
   await ctxD.close();
 
   const ctxB = await browser.newContext(opts);
+  await ctxB.addInitScript(NEUTRAL_UPDATE_CHECK);
   await ctxB.addInitScript(
     ([key, payload]) => localStorage.setItem(key, payload),
     [
@@ -638,6 +656,7 @@ const ctx = await browser.newContext({
   hasTouch: true,
   isMobile: true
 });
+await ctx.addInitScript(NEUTRAL_UPDATE_CHECK);
 const harnessOnly = process.argv.includes("--harness-only");
 
 if (!harnessOnly) {
@@ -677,6 +696,70 @@ if (!harnessOnly) {
   console.log(
     `${emailProblems.length ? "FAIL" : "PASS"} auth-email-form${emailProblems.length ? " " + JSON.stringify(emailProblems) : ""}`
   );
+
+  // Server-connection surface: boot sign-in screen -> server menu ->
+  // "connect custom" -> serverConnectionScreen (input dialog over the
+  // auth-simple shell), then the list view behind it.
+  {
+    const ctxC = await browser.newContext({
+      viewport: { width: VW, height: VH },
+      hasTouch: true,
+      isMobile: true
+    });
+    await ctxC.addInitScript(NEUTRAL_UPDATE_CHECK);
+    const c = await ctxC.newPage();
+    await c.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await c.waitForSelector("#qr-container, #auth-email-form", { timeout: 20000 }).catch(() => {});
+    await c.waitForTimeout(2500);
+    const menuOk = await c.evaluate(() => {
+      const b = document.querySelector("[data-action='server-menu']");
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    await c.waitForTimeout(900);
+    const connectOk = await c.evaluate(() => {
+      const b = document.querySelector("[data-action='connect-custom']");
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    if (!menuOk || !connectOk) {
+      results.push({
+        label: "server-connection",
+        ok: false,
+        fails: [{ kind: "route", why: `menu=${menuOk} connect=${connectOk}` }]
+      });
+      console.log(
+        `FAIL server-connection ${JSON.stringify([{ kind: "route", why: `menu=${menuOk} connect=${connectOk}` }])}`
+      );
+    } else {
+      await c.waitForTimeout(2000);
+      const shellOk = await c.evaluate(() =>
+        Boolean(document.querySelector(".auth-simple-shell")?.offsetParent)
+      );
+      if (!shellOk) {
+        results.push({
+          label: "server-connection",
+          ok: false,
+          fails: [{ kind: "route", why: "connect-custom rendered no .auth-simple-shell" }]
+        });
+        console.log(
+          'FAIL server-connection [{"kind":"route","why":"connect-custom rendered no .auth-simple-shell"}]'
+        );
+      } else {
+        await audit(c, "server-connection");
+        await c
+          .evaluate(() =>
+            document.querySelector(".server-connection-dialog [data-action='cancel']")?.click()
+          )
+          .catch(() => {});
+        await c.waitForTimeout(1500);
+        await audit(c, "server-connection-list");
+      }
+    }
+    await ctxC.close();
+  }
 
   await page.evaluate(() => document.querySelector(".home-track .home-poster-card")?.click());
   await page.waitForTimeout(2500);
@@ -932,6 +1015,54 @@ if (!harnessOnly) {
       await page.waitForTimeout(900);
     } else {
       console.log("SKIP trakt (nav row absent)");
+    }
+
+    // Account screen: Settings landing -> nav:account -> accountShell
+    // (sign-in prompt for guests; shares the auth-simple shell tokens).
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    const accountRow = await page.evaluate(() => {
+      const n = document.querySelector('[data-focus-key="nav:account"]');
+      if (!n) return false;
+      n.scrollIntoView({ block: "center" });
+      const rc = n.getBoundingClientRect();
+      n.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      n.click();
+      return true;
+    });
+    if (accountRow) {
+      await page.waitForTimeout(2500);
+      // nav:account is the in-settings account section (account+sync
+      // status); the standalone accountShell route is reached from other
+      // auth states. The guest-reachable surface is the section.
+      const accountView = await page.evaluate(() => {
+        const s =
+          document.querySelector(".account-shell") ||
+          document.querySelector(".settings-account-list");
+        return Boolean(s?.offsetParent);
+      });
+      if (!accountView) {
+        results.push({
+          label: "account",
+          ok: false,
+          fails: [{ kind: "route", why: "nav:account rendered no account surface" }]
+        });
+        console.log(
+          'FAIL account [{"kind":"route","why":"nav:account rendered no account surface"}]'
+        );
+      } else {
+        await audit(page, "account");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP account (nav row absent)");
     }
   }
 

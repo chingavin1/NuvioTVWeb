@@ -29,13 +29,13 @@ User directive: downscale UI elements to phone scale everywhere, explicitly incl
 ## Phase 2 — NuvioMobile screen parity (mimic the app screens)
 
 - [ ] Profile selection + PIN overlay on touch tier (`profileSelectionScreen*` exists, DPAD-oriented — needs tap handling)
-- [ ] Onboarding / server-connection screen (`serverConnectionScreen`, `syncCodeScreen`) for the touch tier
+- [x] Onboarding / server-connection screen (`serverConnectionScreen`, `syncCodeScreen`) for the touch tier: auth-simple shell phone-scaled (56/72px gutters, 48px title, 92px cards -> 24px/15px/56px), server-connection dialog input+buttons compacted, `server-connection` + `server-connection-list` gates through the real auth->server-menu path; syncCodeScreen shares the scaled auth-simple tokens (no in-app caller reachable without a pairing flow)
 - [ ] Collections & folders (`collectionsScreen`, `collectionEditorScreen`, `folderDetailScreen`) — editor is form-heavy, needs 44px tap targets and touch-friendly reordering
 - [ ] Catalog "see all" grid (`catalogSeeAllScreen`) — currently DPAD-grid keyed
 - [x] Cast screen (`castDetailScreen`) on touch: phone-tier CSS in components-66 (16px gutters, single-col hero, 130x195 avatar, 104x156 credit posters 2:3, 24/18/15px copy, 16px status); regression gates `cast` + `cast-route` (guest data errors → error state audited; loaded-state sizes grounded in components-51/52 TV rules)
 - [x] Plugins/add-ons management (`plugin`) on touch tier: addons+plugins route interiors were pure TV scale (48px title, 28px lede, 144px large rows, 88px actions, 104x64 toggles, 40px headings, 28px empty-card copy); phone-tier CSS in components-66 + `addons`/`plugins` regression gates
 - [x] TMDB/Trakt connect flows (NuvioMobile surfaces these in settings): integration hub + TMDB detail views pass geometry gates; settings Trakt device-auth section phone-scaled (48/28px TV hero type -> 20/14px); traktScreen route stays account-gated
-- [ ] Account/membership screen (`accountScreen`, `membershipOverviewRepository`) on touch
+- [x] Account/membership screen (`accountScreen`, `membershipOverviewRepository`) on touch: account-shell tokens scaled with auth-simple (shared rules); `account` gate walks Settings -> nav:account (guest surface = in-settings account section)
 
 ## Phase 3 — Mobile-web shell behaviors the app has but the browser lacks
 

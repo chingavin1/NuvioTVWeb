@@ -879,8 +879,18 @@
 
 .web-touch .settings-dialog-option,
 .web-touch .settings-text-dialog-button {
-  min-height: 48px;
+  min-height: 44px;
+  padding: 10px 14px;
   font-size: 15px;
+}
+
+.web-touch .settings-dialog-option-label {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .settings-dialog-option-value {
+  font-size: 14px;
 }
 
 /* Search screen: TV header is a 110px-tall grid row on a 960dp canvas.
@@ -1865,6 +1875,53 @@
 .web-touch .settings-trakt-logo {
   width: 56px;
   height: 56px;
+}
+
+/* --- Auth sign-in / server connection / sync code / account screens ---
+   These routes share .auth-simple-* (components-02): 56/72px shell
+   gutters, 48px titles, 22px subtitles, 92px 26px-padded cards. The
+   account shell shares the same tokens and gets the same treatment. */
+.web-touch .auth-simple-shell,
+.web-touch .account-shell {
+  padding: 24px 18px calc(var(--touch-safe-bottom, 0px) + 24px);
+  justify-content: flex-start;
+}
+
+.web-touch .auth-simple-hero {
+  margin: 0 auto 20px;
+}
+
+.web-touch .auth-simple-title,
+.web-touch .account-title {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.web-touch .auth-simple-subtitle,
+.web-touch .account-subtitle {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.web-touch .auth-simple-actions,
+.web-touch .account-settings-stack {
+  gap: 12px;
+}
+
+.web-touch .auth-simple-card,
+.web-touch .account-card,
+.web-touch .account-settings-card {
+  min-height: 56px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.web-touch .settings-text-dialog-input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 15px;
 }
 
 .web-touch .plugins-section-heading {
