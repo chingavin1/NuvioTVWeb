@@ -214,12 +214,13 @@
   --modern-hero-description-max-width: 100%;
 }
 
+/* T6 residual sweep: row rhythm 48px (TV) -> 16px (NuvioMobile block gap). */
 .web-touch .home-screen-shell.home-layout-modern .home-modern-rows-scroll {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch .home-screen-shell.home-layout-modern .home-modern-catalogs {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch
@@ -228,7 +229,7 @@
 .web-touch
   .home-screen-shell.home-layout-modern.home-modern-landscape-posters
   .home-modern-rows-scroll {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch .home-screen-shell.home-layout-modern .home-row-title {
@@ -789,6 +790,24 @@
   gap: 12px;
 }
 
+/* T6: the classic/horizon style variants re-pin the workspace gap/columns
+   with higher specificity than the tier rule above; match their chains. */
+.web-touch .settings-shell[data-settings-style="classic"] .settings-workspace {
+  gap: 12px;
+}
+
+.web-touch .settings-shell[data-settings-style="horizon"] .settings-workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* T6: TV scroll-affordance chevrons are 64px decorations; phone tier 40px. */
+.web-touch .settings-scroll-indicator,
+.web-touch .settings-scroll-indicator svg {
+  width: 40px;
+  height: 40px;
+}
+
 .web-touch .settings-sidebar-frame {
   overflow: hidden;
 }
@@ -837,6 +856,7 @@
 
 .web-touch .settings-content {
   padding-bottom: 16px;
+  gap: 16px;
   -webkit-overflow-scrolling: touch;
 }
 
