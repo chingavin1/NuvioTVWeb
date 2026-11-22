@@ -1048,6 +1048,71 @@
   font-size: 13px;
 }
 
+/* Discover / catalog see-all grid: TV renders 248px cards with 372px posters
+   (one auto-fit column at 390dp = 442px-tall mega-cards, only fit-able on a
+   844-tall viewport). Phone tier matches the library grid: 3 columns, 2:3
+   posters, 15/13px copy. */
+.web-touch .discover-grid,
+.web-touch .seeall-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 12px;
+}
+
+.web-touch .discover-card,
+.web-touch .discover-action-card,
+.web-touch .seeall-card {
+  width: auto;
+  justify-self: stretch;
+}
+
+/* Discover nests the see-all shell inside .discover-main, which owns the
+   page gutters; don't double-pad. */
+.web-touch .discover-main {
+  padding: 16px var(--touch-gutter) calc(var(--touch-nav-height) + var(--touch-safe-bottom) + 16px);
+}
+
+.web-touch .seeall-shell.discover-seeall-shell {
+  padding: 0;
+}
+
+.web-touch .discover-card-poster,
+.web-touch .seeall-card-poster-wrap {
+  height: auto;
+  aspect-ratio: 2 / 3;
+}
+
+.web-touch .discover-card-title,
+.web-touch .discover-action-card-title {
+  font-size: 15px;
+  line-height: 19px;
+}
+
+.web-touch .discover-card-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.web-touch .seeall-shell {
+  padding: 16px var(--touch-gutter) 24px;
+}
+
+.web-touch .seeall-header,
+.web-touch .discover-results-head {
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.web-touch .seeall-title,
+.web-touch .discover-results-title {
+  font-size: 22px;
+}
+
+.web-touch .seeall-subtitle,
+.web-touch .discover-results-subtitle {
+  font-size: 14px;
+}
+
 /* Library: TV scale from Android TV LibraryScreen (56px titles, 150px chip
    buttons, 100px picker anchors, 96px side padding). Phone tier follows the
    mobile app: 16px gutters, 44-48px controls, 26px page title. */
@@ -1542,8 +1607,20 @@
   .web-touch .home-nav-label {
     display: none;
   }
-  .web-touch .home-nav-item {
-    height: 40px;
+  .web-touch .home-sidebar .home-nav-item {
+    /* --touch-nav-height 52 minus the 14px chrome would give 38px targets;
+       enforce the 44px floor explicitly (selector must match the tier rule). */
+    height: 44px;
+  }
+  /* Discover/see-all: 2:3 posters are unscrollable in a 390-high viewport;
+     landscape tier goes wide-format like the home rails. */
+  .web-touch .discover-grid,
+  .web-touch .seeall-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .web-touch .discover-card-poster,
+  .web-touch .seeall-card-poster-wrap {
+    aspect-ratio: 16 / 9;
   }
 }
 
