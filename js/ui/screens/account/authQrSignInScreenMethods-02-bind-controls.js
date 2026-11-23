@@ -162,7 +162,11 @@ export function createAuthQrSignInScreenMethods02() {
           return;
         }
         this.renderQr(result);
-        this.setStatus(I18n.t("auth.qr.scanAndSignIn"));
+        this.setStatus(
+          this.isSameDeviceLoginTier()
+            ? I18n.t("auth.qr.openLinkInstruction", {}, { fallback: "Tap the link to sign in. Keep this page open until it completes." })
+            : I18n.t("auth.qr.scanAndSignIn")
+        );
         this.startPolling(result.code, result.deviceNonce, result.pollIntervalSeconds || 3);
       } finally {
         if (this.isMounted) {
@@ -178,6 +182,23 @@ export function createAuthQrSignInScreenMethods02() {
       const codeText = this.container?.querySelector("#qr-code-text");
       const manualText = this.container?.querySelector("#qr-manual-text");
       if (!qrContainer || !codeText) return;
+      // Phone tier: a QR on the very device that must read it is useless. The
+      // phone renders the one-time login URL (the exact payload the QR would
+      // encode) as a primary tap target instead of the canvas; TVs keep the QR.
+      if (this.isSameDeviceLoginTier()) {
+        this.renderOneTimeLinkLogin(loginUrl || verificationUri, displayCode || code);
+        if (manualText) {
+          const manualUrl = String(verificationUri || "")
+            .replace(/^https?:\/\//i, "")
+            .replace(/\/+$/, "");
+          manualText.innerText = manualUrl && (displayCode || code) ? I18n.t("auth.qr.manualInstruction", { url: manualUrl }) : "";
+        }
+        codeText.innerText = I18n.t("auth.qr.codeLabel", {
+          code: displayCode || code || ""
+        });
+        this.startCountdown(expiresAt);
+        return;
+      }
       const content = String(loginUrl || "").trim();
       if (!content) {
         qrContainer.innerHTML = `<span class="qr-code-unavailable">${escapeHtml(I18n.t("auth.qr.unavailable"))}</span>`;
@@ -215,6 +236,16 @@ export function createAuthQrSignInScreenMethods02() {
         this.serverConfiguration?.tvLoginWebBaseUrl || ServerConfigurationStore.getActive?.()?.tvLoginWebBaseUrl || ""
       ).trim();
       if (!/^https?:\/\//i.test(loginUrl)) return;
+      if (this.isSameDeviceLoginTier()) {
+        this.renderOneTimeLinkLogin(loginUrl, "");
+        const fallbackCodeText = this.container?.querySelector("#qr-code-text");
+        if (fallbackCodeText) {
+          fallbackCodeText.innerText = String(loginUrl)
+            .replace(/^https?:\/\//i, "")
+            .replace(/\/+$/, "");
+        }
+        return;
+      }
       qrContainer.innerHTML = `<canvas class="qr-image qr-image-canvas" aria-label="${escapeHtml(I18n.t("auth.qr.qrImageAlt"))}"></canvas>`;
       try {
         QrCodeGenerator.generate(qrContainer.querySelector("canvas"), loginUrl, 320);
@@ -253,6 +284,42 @@ export function createAuthQrSignInScreenMethods02() {
       targetNode.appendChild(document.createElement("br"));
       targetNode.appendChild(anchor);
       return anchor;
+    },
+    // Phone AND tablet (iPad) browser tier: the device holding the app cannot
+    // also hold a camera up to its own screen, so the QR is useless there.
+    // isTouchDevice() covers finger-only-pointer tablets even when their
+    // canvas is too wide for the compact tier; a mouse/trackpad desktop keeps
+    // the QR because a second device can scan it.
+    isSameDeviceLoginTier() {
+      return Platform.isBrowser() && (Platform.isCompactViewport() || Platform.isTouchDevice());
+    },
+    // Renders the one-time login URL (the same payload the QR encodes) as the
+    // primary tap target. Approval on the opened page completes the existing
+    // device-login polling loop, so no new backend flow is required.
+    renderOneTimeLinkLogin(rawUrl, displayCode) {
+      const qrContainer = this.container?.querySelector("#qr-container");
+      if (!qrContainer) return null;
+      const href = String(rawUrl || "").trim();
+      if (!/^https?:\/\/[^\s]+$/i.test(href)) {
+        qrContainer.innerHTML = `<span class="qr-code-unavailable">${escapeHtml(I18n.t("auth.qr.unavailable"))}</span>`;
+        return null;
+      }
+      const host = href.replace(/^https?:\/\//i, "").split(/[?#]/)[0];
+      const code = String(displayCode || "").trim();
+      qrContainer.innerHTML = [
+        `<a class="qr-one-time-link qr-open-link qr-open-link-primary focusable" href="${escapeHtml(href)}" rel="noopener noreferrer" target="_blank">`,
+        escapeHtml(I18n.t("auth.qr.oneTimeLink", {}, { fallback: "Sign in with a one-time link" })),
+        "</a>",
+        `<div class="qr-one-time-link-note">${escapeHtml(
+          I18n.t(
+            "auth.qr.oneTimeLinkHint",
+            { url: host },
+            { fallback: "Opens %s in a new tab. Finish signing in there — this page signs itself in." }
+          )
+        )}</div>`,
+        code ? `<div class="qr-one-time-link-code">${escapeHtml(I18n.t("auth.qr.codeLabel", { code }))}</div>` : ""
+      ].join("");
+      return qrContainer.querySelector(".qr-one-time-link");
     },
     clearQr() {
       this.qrResult = null;

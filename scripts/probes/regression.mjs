@@ -12,13 +12,31 @@ import { fileURLToPath } from "node:url";
 
 const BASE_URL = (process.env.BASE_URL || "http://127.0.0.1:4173").replace(/\/+$/, "");
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const VW = 390,
-  VH = 844,
+// Viewport override for the 3-viewport verification pass (T8):
+//   VW=390 VH=660 npm run test:mobile-web   (real portrait Safari height)
+//   VW=844 VH=390 npm run test:mobile-web   (landscape phone)
+const VW = Number(process.env.VW) || 390,
+  VH = Number(process.env.VH) || 844,
   OVER = 4;
 
-const AUDIT = (scopeSelector) => {
-  const VW = 390,
-    VH = 844,
+// The app checks NuvioMedia/NuvioTVSmart's GitHub releases on startup and
+// raises a modal update prompt when upstream is ahead. That external state
+// changes independently of the app build (it started firing ~24h ago and
+// silently broke the swipe/hold/auth gates by stealing gestures and taps).
+// Probe sessions must be deterministic: neutralize that one endpoint.
+const NEUTRAL_UPDATE_CHECK = () => {
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (input, ...rest) => {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.includes("/repos/NuvioMedia/NuvioTVSmart/releases"))
+      return Promise.resolve(new Response("probe: update check disabled", { status: 503 }));
+    return realFetch(input, ...rest);
+  };
+};
+
+const AUDIT = (arg) => {
+  const scopeSelector = typeof arg === "string" ? arg : arg.scope;
+  const VW = (typeof arg === "object" && arg.vw) || 390,
     OVER = 4;
   const root = scopeSelector ? document.querySelector(scopeSelector) : document.body;
   if (!root) return { missing: scopeSelector };
@@ -87,9 +105,19 @@ const AUDIT = (scopeSelector) => {
       (el.innerText || "").trim() &&
       ![...el.children].some((c) => (c.innerText || "").trim() === (el.innerText || "").trim())
   );
+  // Leaves pushed outside an overflow-clip parent (marquee transforms)
+  // report rects they do not visibly occupy; exclude them up front.
+  const clippedLeaf = (el, r) => {
+    const p = el.parentElement;
+    if (!p) return false;
+    const st = getComputedStyle(p);
+    if (!/hidden|clip|auto/.test(st.overflowX + st.overflowY)) return false;
+    const pr = p.getBoundingClientRect();
+    return r.left < pr.left - 2 || r.right > pr.right + 2;
+  };
   const rects = texts
     .map((el) => ({ el, r: el.getBoundingClientRect() }))
-    .filter((x) => x.r.width > 2 && x.r.height > 2);
+    .filter((x) => x.r.width > 2 && x.r.height > 2 && !clippedLeaf(x.el, x.r));
   const hits = [];
   // Overlay layers in the player are separate states (controls vs seek overlay
   // vs skip-intro vs episode panel vs modal). Their texts only coexist in the
@@ -103,6 +131,21 @@ const AUDIT = (scopeSelector) => {
       const a = rects[i],
         b = rects[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      // Marquee labels are transformed inside an overflow-hidden clip;
+      // their raw rects extend past the visible window and produce
+      // phantom overlaps against neighbouring icons.
+      if (
+        a.el.closest('[class*="marquee"]') &&
+        a.el.parentElement &&
+        a.el.parentElement.getBoundingClientRect().width < a.r.width
+      )
+        continue;
+      if (
+        b.el.closest('[class*="marquee"]') &&
+        b.el.parentElement &&
+        b.el.parentElement.getBoundingClientRect().width < b.r.width
+      )
+        continue;
       const la = layerOf(a.el),
         lb = layerOf(b.el);
       if (la && lb && la !== lb) continue;
@@ -127,6 +170,10 @@ const AUDIT = (scopeSelector) => {
       // Collapsible groups put option stacks INSIDE the row element; its
       // height tracks content and is not a tap-target scale signal.
       if (el.querySelector('button,[role="button"],.focusable,input,select')) continue;
+      // Settings and collections form rows are content-height buttons
+      // (title+description wrap at phone width); their scale signal is the
+      // copy type, caught by the font/line-height guards, not the height.
+      if (el.querySelector(".settings-row-copy, .collections-form-copy")) continue;
       const h = el.getBoundingClientRect().height;
       if (h > 72)
         fails.push({
@@ -151,7 +198,7 @@ const AUDIT = (scopeSelector) => {
 
 const results = [];
 async function audit(page, label, scope) {
-  const fails = await page.evaluate(AUDIT, scope || "");
+  const fails = await page.evaluate(AUDIT, { scope: scope || "", vw: VW, vh: VH });
   const ok = Array.isArray(fails) && fails.length === 0;
   results.push({ label, ok, fails: Array.isArray(fails) ? fails : [fails] });
   console.log(`${ok ? "PASS" : "FAIL"} ${label}${ok ? "" : " " + JSON.stringify(fails)}`);
@@ -213,8 +260,19 @@ async function gotoHome(page) {
   await page.waitForTimeout(1200);
 }
 async function navTo(page, text) {
+  // Route gates can leave the session one or two router entries deep
+  // (settings drill views themselves push history). Unwind back to the
+  // app shell before reaching for the bottom nav.
+  for (let i = 0; i < 5; i++) {
+    const hasNav = await page.evaluate(
+      () => document.querySelectorAll(".home-nav-item").length > 0
+    );
+    if (hasNav) break;
+    await page.goBack().catch(() => {});
+    await page.waitForTimeout(700);
+  }
   try {
-    await page.waitForSelector(".home-nav-item", { timeout: 20000 });
+    await page.waitForSelector(".home-nav-item", { timeout: 8000 });
   } catch (_) {}
   await page.evaluate(
     (t) =>
@@ -239,10 +297,35 @@ async function holdGate(
   minLeft = 40
 ) {
   const findCard = ({ sel, minLeft }) => {
+    // Bottom margin derives from the real nav's top edge — but only when the
+    // nav is the horizontal bottom bar. Landscape phones render a vertical
+    // side rail whose rect top is ~0; there, keep a generic bottom margin.
+    const navCandidates = [...document.querySelectorAll(".home-nav-list")].filter(
+      (e) => e.offsetParent
+    );
+    const nav = navCandidates
+      .map((e) => e.getBoundingClientRect())
+      .find((r) => r.width > innerWidth / 2 && r.top > innerHeight / 2);
+    const navTop = nav ? nav.top : innerHeight - 74;
+    // Top margin tracks the sticky header bottom where one exists (search,
+    // discover, library, see-all): require the card CENTER below the header
+    // (the hold tap lands at center); 140 stays the fallback for the home hero.
+    const header = document.querySelector(
+      ".seeall-header,.search-header,.library-header,.detail-header"
+    );
+    const headerBottom =
+      header && header.offsetParent ? header.getBoundingClientRect().bottom : null;
+    const topOk = (r) =>
+      (r.top + r.bottom) / 2 >
+      (headerBottom !== null ? headerBottom + 8 : Math.min(140, innerHeight * 0.22));
     const c = [...document.querySelectorAll(sel)].find((n) => {
       const r = n.getBoundingClientRect();
       return (
-        r.left > minLeft && r.right < innerWidth - 10 && r.top > 140 && r.bottom < innerHeight - 130
+        r.left > minLeft &&
+        r.right < innerWidth - 10 &&
+        topOk(r) &&
+        r.bottom < navTop &&
+        (r.top + r.bottom) / 2 < navTop - 8
       );
     });
     if (!c) return null;
@@ -279,23 +362,45 @@ async function holdGate(
         {
           kind: "hold",
           why: "no poster card found",
-          snap: await page.evaluate(() => ({
-            body: document.body.innerText.replace(/\s+/g, " ").slice(0, 140),
-            first: (() => {
-              const c = document.querySelector(
-                ".library-grid-card,.discover-card,.home-poster-card"
-              );
-              if (!c) return null;
-              const r = c.getBoundingClientRect();
-              return {
-                vis: Boolean(c.offsetParent),
-                x: Math.round(r.x),
-                y: Math.round(r.y),
-                w: Math.round(r.width),
-                h: Math.round(r.height)
-              };
-            })()
-          }))
+          snap: await page.evaluate(
+            (gsel) => ({
+              gateCount: document.querySelectorAll(gsel).length,
+              gateFirst3: [...document.querySelectorAll(gsel)].slice(0, 3).map((g) => {
+                const gr = g.getBoundingClientRect();
+                return {
+                  x: Math.round(gr.x),
+                  y: Math.round(gr.y),
+                  w: Math.round(gr.width),
+                  h: Math.round(gr.height),
+                  op: g.offsetParent !== null
+                };
+              }),
+              headerCls: (() => {
+                const h = document.querySelector(
+                  ".seeall-header,.search-header,.library-header,.detail-header"
+                );
+                return h
+                  ? h.className.split(" ")[0] + "@" + Math.round(h.getBoundingClientRect().bottom)
+                  : null;
+              })(),
+              body: document.body.innerText.replace(/\s+/g, " ").slice(0, 140),
+              first: (() => {
+                const c = document.querySelector(
+                  ".library-grid-card,.discover-card,.home-poster-card"
+                );
+                if (!c) return null;
+                const r = c.getBoundingClientRect();
+                return {
+                  vis: Boolean(c.offsetParent),
+                  x: Math.round(r.x),
+                  y: Math.round(r.y),
+                  w: Math.round(r.width),
+                  h: Math.round(r.height)
+                };
+              })()
+            }),
+            cardSelector
+          )
         }
       ]
     };
@@ -353,6 +458,18 @@ async function holdGate(
 }
 
 async function swipeGate(page) {
+  // Rails fill asynchronously after the shell mounts; poll for a swipeable
+  // track instead of sampling once (a single early sample made this gate
+  // flap "no swipeable .home-track found" on slower runs).
+  try {
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll(".home-track")].some(
+          (t) => t.scrollWidth > t.clientWidth + 40
+        ),
+      { timeout: 8000 }
+    );
+  } catch (_) {}
   const pre = await page.evaluate(() => {
     const track = [...document.querySelectorAll(".home-track")].find(
       (t) => t.scrollWidth > t.clientWidth + 40
@@ -447,6 +564,7 @@ async function authPhoneGate(browser) {
   const opts = { viewport: { width: VW, height: VH }, hasTouch: true, isMobile: true };
 
   const ctxA = await browser.newContext(opts);
+  await ctxA.addInitScript(NEUTRAL_UPDATE_CHECK);
   const a = await ctxA.newPage();
   await a.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
   await a.waitForSelector("#qr-container, #auth-email-form", { timeout: 20000 }).catch(() => {});
@@ -456,17 +574,46 @@ async function authPhoneGate(browser) {
   if (await a.evaluate(() => !!document.querySelector("#auth-email-form")))
     qrProblems.push({ kind: "auth", why: "email form shown on tvLogin-only server" });
   const qrBox = await probe(a, "#qr-container canvas");
-  if (!qrBox || qrBox.hidden || qrBox.h < 150)
-    qrProblems.push({ kind: "auth", why: "QR not visible: " + JSON.stringify(qrBox) });
-  const link = await probe(a, ".qr-open-link-primary");
+  if (qrBox && !qrBox.hidden)
+    qrProblems.push({
+      kind: "auth",
+      why: "QR canvas rendered on phone tier; one-time link expected instead"
+    });
+  const link = await probe(a, ".qr-one-time-link");
   if (!link || link.hidden || link.h < 44)
     qrProblems.push({
       kind: "auth",
-      why: "open-on-this-device link missing/<44px: " + JSON.stringify(link)
+      why: "one-time sign-in link missing/<44px: " + JSON.stringify(link)
+    });
+  const href = await a.evaluate(
+    () => document.querySelector(".qr-one-time-link")?.getAttribute("href") || ""
+  );
+  if (!/^https?:\/\//i.test(href))
+    qrProblems.push({ kind: "auth", why: "one-time link href not https: " + href });
+  const openLink = await probe(a, ".qr-open-link-primary");
+  if (!openLink || openLink.hidden || openLink.h < 44)
+    qrProblems.push({
+      kind: "auth",
+      why: "open-on-this-device link missing/<44px: " + JSON.stringify(openLink)
     });
   await ctxA.close();
 
+  // Desktop web parity: the TV-canvas rule (longer side >=1440) keeps the
+  // stock QR canvas path; the one-time-link block is phone/compact tier only.
+  const ctxD = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  await ctxD.addInitScript(NEUTRAL_UPDATE_CHECK);
+  const d = await ctxD.newPage();
+  await d.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+  await d.waitForSelector("#qr-container canvas", { timeout: 20000 }).catch(() => {});
+  await d.waitForTimeout(2000);
+  if (await d.evaluate(() => !!document.querySelector(".qr-one-time-link")))
+    qrProblems.push({ kind: "auth", why: "one-time link block leaked into desktop web tier" });
+  if (!(await d.evaluate(() => !!document.querySelector("#qr-container canvas"))))
+    qrProblems.push({ kind: "auth", why: "QR canvas missing on desktop web tier" });
+  await ctxD.close();
+
   const ctxB = await browser.newContext(opts);
+  await ctxB.addInitScript(NEUTRAL_UPDATE_CHECK);
   await ctxB.addInitScript(
     ([key, payload]) => localStorage.setItem(key, payload),
     [
@@ -532,6 +679,7 @@ const ctx = await browser.newContext({
   hasTouch: true,
   isMobile: true
 });
+await ctx.addInitScript(NEUTRAL_UPDATE_CHECK);
 const harnessOnly = process.argv.includes("--harness-only");
 
 if (!harnessOnly) {
@@ -549,6 +697,50 @@ if (!harnessOnly) {
   console.log(
     `${holdProblems.length ? "FAIL" : "PASS"} home-hold-menu${holdProblems.length ? " " + JSON.stringify(holdProblems) : ""}`
   );
+
+  // Catalog "See all": the modern layout exposes the tile on compact-tier
+  // canvases only; tap-to-detail must work because this grid is DPAD-keyed
+  // and touch is the primary input here.
+  const seeAllOk = await page.evaluate(() => {
+    const b = document.querySelector('[data-action="openCatalogSeeAll"]');
+    if (!b) return false;
+    b.scrollIntoView({ block: "center", inline: "center" });
+    b.click();
+    return true;
+  });
+  if (seeAllOk) {
+    await page.waitForTimeout(2200);
+    await audit(page, "catalog-see-all");
+    const tapped = await page.evaluate(() => {
+      const c = document.querySelector('.seeall-card[data-action="openDetail"]');
+      if (!c) return false;
+      c.scrollIntoView({ block: "center" });
+      c.click();
+      return true;
+    });
+    await page.waitForTimeout(2500);
+    const detailUp = await page.evaluate(() =>
+      Boolean(
+        document.querySelector('[data-action="play"], .detail-loading-shell, .series-detail-shell')
+      )
+    );
+    const problems = !tapped
+      ? [{ kind: "route", why: "no seeall openDetail card" }]
+      : detailUp
+        ? []
+        : [{ kind: "route", why: "card tap did not open detail" }];
+    results.push({ label: "catalog-see-all-detail", ok: problems.length === 0, fails: problems });
+    console.log(
+      `${problems.length ? "FAIL" : "PASS"} catalog-see-all-detail${problems.length ? " " + JSON.stringify(problems) : ""}`
+    );
+    await page.goBack().catch(() => {}); // detail -> see-all
+    await page.waitForTimeout(900);
+  } else {
+    results.push({ label: "catalog-see-all", ok: true, fails: [], skipped: true });
+    console.log("SKIP catalog-see-all (no see-all tile on this layout/data)");
+  }
+  await page.goBack().catch(() => {}); // see-all -> home (or no-op when skipped)
+  await page.waitForTimeout(900);
 
   const reportHold = (label, resProblems) => {
     const skipped = resProblems === null;
@@ -572,9 +764,96 @@ if (!harnessOnly) {
     `${emailProblems.length ? "FAIL" : "PASS"} auth-email-form${emailProblems.length ? " " + JSON.stringify(emailProblems) : ""}`
   );
 
+  // Server-connection surface: boot sign-in screen -> server menu ->
+  // "connect custom" -> serverConnectionScreen (input dialog over the
+  // auth-simple shell), then the list view behind it.
+  {
+    const ctxC = await browser.newContext({
+      viewport: { width: VW, height: VH },
+      hasTouch: true,
+      isMobile: true
+    });
+    await ctxC.addInitScript(NEUTRAL_UPDATE_CHECK);
+    const c = await ctxC.newPage();
+    await c.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await c.waitForSelector("#qr-container, #auth-email-form", { timeout: 20000 }).catch(() => {});
+    await c.waitForTimeout(2500);
+    const menuOk = await c.evaluate(() => {
+      const b = document.querySelector("[data-action='server-menu']");
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    await c.waitForTimeout(900);
+    const connectOk = await c.evaluate(() => {
+      const b = document.querySelector("[data-action='connect-custom']");
+      if (!b) return false;
+      b.click();
+      return true;
+    });
+    if (!menuOk || !connectOk) {
+      results.push({
+        label: "server-connection",
+        ok: false,
+        fails: [{ kind: "route", why: `menu=${menuOk} connect=${connectOk}` }]
+      });
+      console.log(
+        `FAIL server-connection ${JSON.stringify([{ kind: "route", why: `menu=${menuOk} connect=${connectOk}` }])}`
+      );
+    } else {
+      await c.waitForTimeout(2000);
+      const shellOk = await c.evaluate(() =>
+        Boolean(document.querySelector(".auth-simple-shell")?.offsetParent)
+      );
+      if (!shellOk) {
+        results.push({
+          label: "server-connection",
+          ok: false,
+          fails: [{ kind: "route", why: "connect-custom rendered no .auth-simple-shell" }]
+        });
+        console.log(
+          'FAIL server-connection [{"kind":"route","why":"connect-custom rendered no .auth-simple-shell"}]'
+        );
+      } else {
+        await audit(c, "server-connection");
+        await c
+          .evaluate(() =>
+            document.querySelector(".server-connection-dialog [data-action='cancel']")?.click()
+          )
+          .catch(() => {});
+        await c.waitForTimeout(1500);
+        await audit(c, "server-connection-list");
+      }
+    }
+    await ctxC.close();
+  }
+
   await page.evaluate(() => document.querySelector(".home-track .home-poster-card")?.click());
   await page.waitForTimeout(2500);
   await audit(page, "detail");
+  // Cast detail (castDetailScreen): reached from the detail cast row. Guest
+  // data may fail to load — the error/loading state is itself part of the
+  // phone tier and gets audited either way.
+  const castEntry = page.locator('[data-action="openCastDetail"]').first();
+  if (await castEntry.count()) {
+    await castEntry.tap().catch(() => {});
+    await page.waitForTimeout(2500);
+    await audit(page, "cast");
+    const castShell = await page.evaluate(() => {
+      const s = document.querySelector(".cast-detail-shell");
+      return Boolean(s && s.offsetParent);
+    });
+    if (!castShell)
+      results.push({
+        label: "cast-route",
+        ok: false,
+        fails: [{ kind: "route", why: "openCastDetail did not render .cast-detail-shell" }]
+      });
+    else results.push({ label: "cast-route", ok: true, fails: [] });
+    console.log(`${castShell ? "PASS" : "FAIL"} cast-route`);
+    await page.evaluate(() => document.querySelector(".cast-detail-back")?.click());
+    await page.waitForTimeout(1500);
+  }
 
   await gotoHome(page);
   await navTo(page, "Search");
@@ -591,7 +870,13 @@ if (!harnessOnly) {
   if (await disc.count()) {
     await disc.tap().catch(() => {});
     await page.waitForTimeout(2500);
-    const discHold = await holdGate(page, '.discover-card[data-action="openDetail"]', true, true);
+    const discHold = await holdGate(
+      page,
+      '.discover-card[data-action="openDetail"]',
+      true,
+      true,
+      12
+    );
     reportHold("discover-hold-menu", discHold.skipped ? null : discHold.problems);
     // Seed the guest library from the still-open menu (LOCAL source mode) so
     // the library-hold gate cannot hide behind an empty-grid skip.
@@ -650,6 +935,411 @@ if (!harnessOnly) {
   );
   await page.waitForTimeout(1500);
   await audit(page, "settings-player");
+
+  // Add-ons and plugins management routes, reached from the Settings
+  // landing drill-down rows (data-focus-key rows, not .settings-nav-item).
+  for (const [label, rowKey, shellSel] of [
+    ["addons", "contentDiscovery:addons", ".addons-route-shell"],
+    ["plugins", "contentDiscovery:plugins", ".plugins-route-shell"]
+  ]) {
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('[data-focus-key^="nav:"]')].find((n) =>
+        /content/i.test(n.innerText || "")
+      );
+      if (nav) {
+        nav.scrollIntoView({ block: "center" });
+        nav.click();
+      }
+    });
+    await page.waitForTimeout(1500);
+    const rowOk = await page.evaluate((k) => {
+      const row = document.querySelector(`[data-focus-key="${k}"]`);
+      if (!row) return false;
+      row.scrollIntoView({ block: "center" });
+      const rc = row.getBoundingClientRect();
+      row.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      row.click();
+      return true;
+    }, rowKey);
+    if (!rowOk) {
+      results.push({ label, ok: true, fails: [], skipped: true });
+      console.log(`SKIP ${label} (entry row not present in this mode)`);
+      continue;
+    }
+    await page.waitForTimeout(2500);
+    const shellOk = await page.evaluate(
+      (sel) => Boolean(document.querySelector(sel)?.offsetParent),
+      shellSel
+    );
+    if (!shellOk) {
+      results.push({
+        label,
+        ok: false,
+        fails: [{ kind: "route", why: `${rowKey} did not render ${shellSel}` }]
+      });
+      console.log(
+        `FAIL ${label} ${JSON.stringify([{ kind: "route", why: `${rowKey} did not render ${shellSel}` }])}`
+      );
+    } else {
+      await audit(page, label);
+      // Collections manager lives on the add-ons screen; the New
+      // Collection editor renders in place (no creation is submitted).
+      if (label === "addons") {
+        const collOk = await page.evaluate(() => {
+          const b = document.querySelector('[data-action-id="open_collections"]');
+          if (!b) return false;
+          b.scrollIntoView({ block: "center" });
+          b.click();
+          return true;
+        });
+        if (collOk) {
+          await page.waitForTimeout(2000);
+          await audit(page, "collections");
+          const editorOk = await page.evaluate(() => {
+            const b = document.querySelector(
+              '.collections-new [data-action="new"], [data-action="new"]'
+            );
+            if (!b) return false;
+            b.scrollIntoView({ block: "center" });
+            b.click();
+            return true;
+          });
+          if (editorOk) {
+            await page.waitForTimeout(1500);
+            await audit(page, "collections-editor");
+          } else {
+            results.push({
+              label: "collections-editor",
+              ok: false,
+              fails: [{ kind: "route", why: "no [data-action=new] on collections screen" }]
+            });
+            console.log(
+              'FAIL collections-editor [{"kind":"route","why":"no [data-action=new] on collections screen"}]'
+            );
+          }
+          await page.goBack().catch(() => {});
+          await page.waitForTimeout(800);
+        } else {
+          results.push({
+            label: "collections",
+            ok: false,
+            fails: [{ kind: "route", why: "no open_collections entry on addons screen" }]
+          });
+          console.log(
+            'FAIL collections [{"kind":"route","why":"no open_collections entry on addons screen"}]'
+          );
+        }
+      }
+    }
+    await page.goBack().catch(() => {});
+    await page.waitForTimeout(900);
+  }
+
+  // Integration hub (in-settings views) + dedicated Trakt route.
+  {
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    const hubRow = await page.evaluate(() => {
+      const nav = [...document.querySelectorAll('[data-focus-key^="nav:"]')].find((n) =>
+        /integration/i.test((n.getAttribute("data-focus-key") || "") + " " + (n.innerText || ""))
+      );
+      if (!nav) return false;
+      nav.scrollIntoView({ block: "center" });
+      const rc = nav.getBoundingClientRect();
+      nav.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      nav.click();
+      return true;
+    });
+    if (hubRow) {
+      await page.waitForTimeout(1800);
+      await audit(page, "integration-hub");
+      const tmdbRow = await page.evaluate(() => {
+        const row = document.querySelector('[data-focus-key="integration:hub:tmdb"]');
+        if (!row) return false;
+        row.scrollIntoView({ block: "center" });
+        const rc = row.getBoundingClientRect();
+        row.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            clientX: rc.left + rc.width / 2,
+            clientY: rc.top + rc.height / 2
+          })
+        );
+        row.click();
+        return true;
+      });
+      if (tmdbRow) {
+        await page.waitForTimeout(1800);
+        await audit(page, "integration-tmdb");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP integration-hub (nav row absent)");
+    }
+    const traktRow = await page.evaluate(() => {
+      const n = document.querySelector('[data-focus-key="nav:trakt"]');
+      if (!n) return false;
+      n.scrollIntoView({ block: "center" });
+      const rc = n.getBoundingClientRect();
+      n.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      n.click();
+      return true;
+    });
+    if (traktRow) {
+      await page.waitForTimeout(2500);
+      // nav:trakt is the in-settings Trakt section (device-auth flow); the
+      // dedicated traktScreen route only mounts after a connection exists
+      // (trakt:open), so the guest-reachable surface is the section.
+      const traktSection = await page.evaluate(() =>
+        Boolean(document.querySelector('[class*="settings-trakt"]')?.offsetParent)
+      );
+      if (!traktSection) {
+        results.push({
+          label: "trakt",
+          ok: false,
+          fails: [{ kind: "route", why: "nav:trakt rendered no settings-trakt section" }]
+        });
+        console.log(
+          'FAIL trakt [{"kind":"route","why":"nav:trakt rendered no settings-trakt section"}]'
+        );
+      } else {
+        await audit(page, "trakt");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP trakt (nav row absent)");
+    }
+
+    // Account screen: Settings landing -> nav:account -> accountShell
+    // (sign-in prompt for guests; shares the auth-simple shell tokens).
+    await navTo(page, "Settings");
+    await page.waitForTimeout(1200);
+    const accountRow = await page.evaluate(() => {
+      const n = document.querySelector('[data-focus-key="nav:account"]');
+      if (!n) return false;
+      n.scrollIntoView({ block: "center" });
+      const rc = n.getBoundingClientRect();
+      n.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: rc.left + rc.width / 2,
+          clientY: rc.top + rc.height / 2
+        })
+      );
+      n.click();
+      return true;
+    });
+    if (accountRow) {
+      await page.waitForTimeout(2500);
+      // nav:account is the in-settings account section (account+sync
+      // status); the standalone accountShell route is reached from other
+      // auth states. The guest-reachable surface is the section.
+      const accountView = await page.evaluate(() => {
+        const s =
+          document.querySelector(".account-shell") ||
+          document.querySelector(".settings-account-list");
+        return Boolean(s?.offsetParent);
+      });
+      if (!accountView) {
+        results.push({
+          label: "account",
+          ok: false,
+          fails: [{ kind: "route", why: "nav:account rendered no account surface" }]
+        });
+        console.log(
+          'FAIL account [{"kind":"route","why":"nav:account rendered no account surface"}]'
+        );
+      } else {
+        await audit(page, "account");
+      }
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    } else {
+      console.log("SKIP account (nav row absent)");
+    }
+  }
+
+  // Profile tier gates. The boot-time "Who's watching?" landing only
+  // auto-mounts with a reachable profile-sync backend; Settings -> Profiles
+  // chip -> Manage Profiles mounts the SAME #profileSelection screen, so the
+  // phone-scale assertions run through that touch-reachable path.
+  {
+    const problems = [];
+    await navTo(page, "Settings");
+    try {
+      await page.waitForSelector(".settings-nav-item", { timeout: 8000 });
+    } catch (_) {}
+    const chip = await page.evaluate(() => {
+      const c = [...document.querySelectorAll(".settings-nav-item")].find((n) =>
+        /profile/i.test(n.innerText || "")
+      );
+      if (c) c.click();
+      return !!c;
+    });
+    const manageSeen = await page
+      .waitForSelector(".settings-profile-manage-row", { timeout: 6000 })
+      .then(() => true)
+      .catch(() => false);
+    const manage = await page.evaluate(() => {
+      const row = document.querySelector(".settings-profile-manage-row");
+      if (row) row.click();
+      return !!row;
+    });
+    await page.waitForTimeout(2500);
+    if (!chip || !manage || !(await page.locator(".profile-card").count())) {
+      problems.push({ kind: "profile-picker", why: "manage entry not reachable", chip, manage });
+    } else {
+      for (const f of await page.evaluate(AUDIT, { scope: "#profileSelection", vw: VW, vh: VH }))
+        problems.push({ ...f, screen: "profile-picker" });
+      const scale = await page.evaluate(() => {
+        const box = (s) => {
+          const r = document.querySelector(s)?.getBoundingClientRect();
+          return r ? { w: Math.round(r.width), h: Math.round(r.height) } : null;
+        };
+        const fs = (s) =>
+          Math.round(
+            parseFloat(getComputedStyle(document.querySelector(s) || document.body).fontSize)
+          );
+        return {
+          avatar: box(".profile-avatar"),
+          ring: box(".profile-avatar-ring"),
+          card: box(".profile-card"),
+          name: fs(".profile-name"),
+          title: fs(".profile-title")
+        };
+      });
+      if (!scale.avatar || scale.avatar.w > 150)
+        problems.push({ kind: "picker-avatar-tv-size", avatar: scale.avatar });
+      if (!scale.card || scale.card.w > 190)
+        problems.push({ kind: "picker-card-tv-size", card: scale.card });
+      if (scale.name > 18) problems.push({ kind: "picker-name-tv-size", fs: scale.name });
+      if (scale.title > 24) problems.push({ kind: "picker-title-tv-size", fs: scale.title });
+
+      // Editor overlay: its min(xvw,px) TV tokens collapse to ~5px text at
+      // phone width, so the gate asserts the phone floor instead of a max.
+      await page.evaluate(() => {
+        [...document.querySelectorAll("#profileSelection .focusable")]
+          .find((n) => /add profile/i.test(n.innerText || ""))
+          ?.click();
+      });
+      await page.waitForTimeout(1200);
+      if (!(await page.locator(".profile-editor-panel").count())) {
+        problems.push({ kind: "profile-editor-missing" });
+      } else {
+        for (const f of await page.evaluate(AUDIT, {
+          scope: ".profile-editor-backdrop",
+          vw: VW,
+          vh: VH
+        }))
+          problems.push({ ...f, screen: "profile-editor" });
+        const floor = await page.evaluate(() => {
+          const hs = [
+            ...document.querySelectorAll(".profile-editor-panel .profile-overlay-button")
+          ].map((b) => Math.round(b.getBoundingClientRect().height));
+          const input = document.querySelector(".profile-editor-name-input");
+          return {
+            minBtn: hs.length ? Math.min(...hs) : 0,
+            input: input ? Math.round(input.getBoundingClientRect().height) : 0,
+            minFs: Math.min(
+              ...[...document.querySelectorAll(".profile-editor-panel *")]
+                .filter((e) => !e.children.length && (e.innerText || "").trim())
+                .map((e) => Math.round(parseFloat(getComputedStyle(e).fontSize)))
+            )
+          };
+        });
+        if (floor.minBtn < 44) problems.push({ kind: "profile-editor-tap-target", ...floor });
+        if (floor.input < 44) problems.push({ kind: "profile-editor-input", ...floor });
+        if (floor.minFs < 11) problems.push({ kind: "profile-editor-collapsed-text", ...floor });
+      }
+    }
+    results.push({ label: "profile-tier", ok: problems.length === 0, fails: problems });
+    console.log(
+      `${problems.length ? "FAIL" : "PASS"} profile-tier${problems.length ? " " + JSON.stringify(problems) : ""}`
+    );
+    await page.goto(BASE_URL + "/", { waitUntil: "domcontentloaded" });
+    await gotoHome(page);
+  }
+
+  // Episode-selection gate: sweep home cards for a SERIES detail (card 0 is
+  // usually a movie), then assert the episode rail/season chips sit at phone
+  // scale — pre-fix they were 560x358 cards with fs32 titles and 220x88
+  // season buttons on a 390px viewport.
+  {
+    const problems = [];
+    let episodes = 0;
+    let tried = 0;
+    const nCards = await page.locator(".home-main .home-poster-card").count();
+    for (let i = 0; i < Math.min(nCards, 20); i++) {
+      tried++;
+      await page.evaluate(
+        (idx) => document.querySelectorAll(".home-main .home-poster-card")[idx]?.click(),
+        i
+      );
+      await page.waitForTimeout(1700);
+      episodes = await page.evaluate(
+        () => document.querySelectorAll(".series-episode-card").length
+      );
+      if (episodes) break;
+      await page.goBack().catch(() => {});
+      await page.waitForTimeout(900);
+    }
+    if (!episodes) {
+      problems.push({ kind: "episode-gate-no-series", cards: nCards, tried });
+      results.push({ label: "detail-episodes", ok: nCards === 0, fails: problems });
+      console.log(
+        `${nCards === 0 ? "SKIP" : "FAIL"} detail-episodes${nCards === 0 ? " (no home cards to seed)" : " " + JSON.stringify(problems)}`
+      );
+    } else {
+      for (const f of await page.evaluate(AUDIT, { scope: "#detail", vw: VW, vh: VH }))
+        problems.push({ ...f, screen: "detail-episodes" });
+      const scale = await page.evaluate(() => {
+        const vw = window.innerWidth;
+        const card = document.querySelector(".series-episode-card")?.getBoundingClientRect();
+        const title = document.querySelector(".series-episode-title");
+        const chips = [...document.querySelectorAll(".series-season-btn")].map((b) =>
+          Math.round(b.getBoundingClientRect().height)
+        );
+        return {
+          cardW: card ? Math.round(card.width) : 0,
+          titleFs: title ? Math.round(parseFloat(getComputedStyle(title).fontSize)) : 0,
+          minChip: chips.length ? Math.min(...chips) : 0,
+          maxChip: chips.length ? Math.max(...chips) : 0,
+          vw
+        };
+      });
+      if (scale.cardW === 0 || scale.cardW > scale.vw - 60)
+        problems.push({ kind: "episode-card-tv-size", ...scale });
+      if (scale.titleFs > 20) problems.push({ kind: "episode-title-tv-size", ...scale });
+      if (scale.minChip < 44 || scale.maxChip > 64)
+        problems.push({ kind: "episode-season-chip-scale", ...scale });
+      results.push({ label: "detail-episodes", ok: problems.length === 0, fails: problems });
+      console.log(
+        `${problems.length ? "FAIL" : "PASS"} detail-episodes${problems.length ? " " + JSON.stringify(problems) : ""}`
+      );
+    }
+  }
 }
 
 // Static player harness: the live player needs an authenticated account with

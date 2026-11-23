@@ -37,3 +37,16 @@ jobs:
 
       - name: Touch-tier probes (screens + player + PWA)
         run: npm run test:mobile-web
+
+      # Same gates at the other canvas sizes the touch tier must serve:
+      # landscape phone, tablet portrait, tablet landscape (upper edge of
+      # the compact-tier boundary in Platform.isCompactViewport).
+      - name: Touch-tier probes (landscape phone)
+        env: { VW: 844, VH: 390 }
+        run: npm run test:mobile-web
+      - name: Touch-tier probes (tablet portrait)
+        env: { VW: 768, VH: 1024 }
+        run: npm run test:mobile-web
+      - name: Touch-tier probes (tablet landscape)
+        env: { VW: 1280, VH: 800 }
+        run: npm run test:mobile-web

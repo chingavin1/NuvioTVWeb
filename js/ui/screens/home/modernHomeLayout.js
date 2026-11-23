@@ -1,4 +1,5 @@
 import { LayoutPreferences } from "../../../data/local/layoutPreferences.js";
+import { Platform } from "../../../platform/index.js";
 import { unchangedHomeRowMarkup } from "./homeDomUpdate.js";
 import { I18n } from "../../../i18n/index.js";
 
@@ -98,8 +99,8 @@ export function renderModernHomeLayout({
 
     const rowKey = String(rowData?.homeCatalogKey || buildModernRowKey(rowData));
     const seeAllId = `${rowData.addonId || "addon"}_${rowData.catalogId || "catalog"}_${rowData.type || "movie"}`;
+    const catalogResultData = rowData?.result?.data || {};
     if (!isLoading && !isCollectionRow) {
-      const catalogResultData = rowData?.result?.data || {};
       catalogSeeAllMap.set(seeAllId, {
         addonBaseUrl: rowData.addonBaseUrl || "",
         addonId: rowData.addonId || "",
@@ -179,6 +180,21 @@ export function renderModernHomeLayout({
       )
       .join("");
 
+    // Catalog "See all" tile: classic rows have always offered it. The
+    // modern layout on TV loads the next page via D-pad dwell pagination and
+    // historically rendered no tile; the touch tier cannot dwell-paginate, so
+    // the see-all grid is its only full-catalog entry. TV canvases keep the
+    // row markup byte-identical (isCompactViewport is false there).
+    const showSeeAllTile =
+      Boolean(_createSeeAllCardMarkup) &&
+      Platform.isCompactViewport() &&
+      !isCollectionRow &&
+      !isLoading &&
+      (Boolean(catalogResultData.hasMore) || items.length >= maxItems);
+    const seeAllMarkup = showSeeAllTile
+      ? _createSeeAllCardMarkup(seeAllId, rowData, visibleItems.length, rowIndex)
+      : "";
+
     const sectionMarkup = `
       <section class="home-row home-modern-row home-row-enter" data-row-key="${escapeHtml(rowKey)}" data-row-index="${rowIndex}">
         <div class="home-row-head">
@@ -186,6 +202,7 @@ export function renderModernHomeLayout({
         </div>
         <div class="home-track" data-track-row-key="${escapeHtml(rowKey)}">
           ${cardsMarkup}
+          ${seeAllMarkup}
         </div>
       </section>
     `;

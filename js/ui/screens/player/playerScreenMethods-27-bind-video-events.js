@@ -67,6 +67,25 @@ export function createPlayerScreenMethods27() {
         this.videoListeners.push({ target: video, eventName, handler });
       });
 
+      // Picture-in-Picture (touch tier background play): <video> lives in the
+      // persistent app shell, so PiP survives route changes. When the user
+      // closes the PiP window after leaving the player route, this is the
+      // only place that stops the session and flushes progress (route-leave
+      // cleanup deliberately holds off while PiP is active).
+      const onLeavePip = () => {
+        if (!this.uiRefs) {
+          try {
+            PlayerController.stop();
+          } catch (_) {}
+        }
+      };
+      video.addEventListener("leavepictureinpicture", onLeavePip);
+      this.videoListeners.push({
+        target: video,
+        eventName: "leavepictureinpicture",
+        handler: onLeavePip
+      });
+
       if (typeof window?.addEventListener === "function") {
         const onViewportResize = () => {
           this.applyAspectMode({ showToast: false });

@@ -5,6 +5,19 @@
 
 Grounded in branch `feat/web-touch-client` (8 commits ahead of origin). Screens in the codebase: account, cast, catalog, collection, debug, detail, home, library, onboarding, party, player, plugin, search, settings, stream, supporters, tmdb, trakt. No manifest/service worker yet. Touch tier already covers auth/QR, home, bottom nav, detail, settings, search, library, player tokens.
 
+## ACTIVE GOAL — Full-scale phone pass (2026-11-21): profile selection, episode selection, everything
+
+User directive: downscale UI elements to phone scale everywhere, explicitly including the landing-page profile selection ("Who's watching?") and episode selection. Suite-green != phone scale (real-phone feedback after 14/14 PASS said UI still too big). Method per the touch-tier playbook: rank live-DOM computed font-sizes/control heights per screen, shrink to NuvioMobile references (poster 110-114, buttons 44-48, title 20-26, body 14-15, block gaps 16-20), rerun overlap gates after each compaction.
+
+- [x] T1 Baseline audit: live-DOM scale ranker (fs>=16px / h>=56px leaves, grouped by class) at 390x844, 390x660, 844x390 for profile picker, home, detail episode list, player episode panel; screenshots for the record
+- [x] T2 Profile selection phone tier: components-66 rules for `.profile-grid`/`.profile-card`/`.profile-avatar-tile` (TV 304px cards, 160px tiles → ~110px avatars, 2-col grid, 20-26px titles, >=44px targets); tap activation verified (screen is DPAD-keyed — check click path + suppressedFocusClick interplay)
+- [x] T3 Profile PIN overlay + editor overlays at phone scale (PIN rules unverified live — guest state has no PIN; editor+picker gated in probe suite): keypad keys >=56px, avatar picker grid 3-col, name input 44px, all in components-66 or JS compact-tier vars
+- [x] T4 Episode selection on detail: `.series-episode-card`/`.series-episode-thumb`/title/meta down from ATV 2x dp to phone (thumb ~160x90 or full-width row list), season selector chips 44px
+- [x] T5 Player episode panel row compaction (audit showed panel already phone-scale: title fs20, no fs>=16 leaf rows): `.player-episode-panel` rows (thumb, 16px title, 13px meta), season tabs already 44px — tighten list rhythm
+- [x] T6 General residual sweep: shrink typographic rhythm/block gaps (30-40px → 16-20px) surfaced by T1 across home/detail/settings/search/library; grep method files for bare ATV numeric tokens (126/252/80/24) on any surface still TV-sized — home rows/catalogs gap 24→16 (incl. landscape-posters variant), settings content gap 24→16 + classic/horizon workspace-gap overrides matched at equal specificity (TV `data-settings-style` chains beat the plain .web-touch rule), settings scroll-indicator chevrons 64→40; residual JS tokens verified benign (library 252 fallback only in no-css-grid legacy path, settings 126 default feeds the dp-scaled compact path); ranker rerun at 390x844+390x660 shows zero gaps >=24 and no new TV-size leaves
+- [x] T7 New probe gates: profile-picker scale gate (audit the picker before dismissing it for nav), detail-episode + player-episode-panel tap/size checks; add to scripts/probes/regression.mjs so fork CI guards phone scale
+- [x] T8 Verify: node scripts/test-legacy-css-colors.mjs, npm test, npm run test:mobile-web at 3 viewports, overlap rerun after every compaction, TV byte-identical review (every hunk .web-touch/isCompactViewport-gated); push branch to trigger fork CI — 3-viewport runs (390x844 / 390x660 / 844x390) green locally after probe gate rework; fork CI dispatch run 45028875135
+
 ## Phase 1 — Close out the touch-tier branch (finish what's in flight)
 
 - [x] Merge `feat/web-touch-client` → main after the 8 unpushed commits pass review (push first)
@@ -15,14 +28,14 @@ Grounded in branch `feat/web-touch-client` (8 commits ahead of origin). Screens 
 
 ## Phase 2 — NuvioMobile screen parity (mimic the app screens)
 
-- [ ] Profile selection + PIN overlay on touch tier (`profileSelectionScreen*` exists, DPAD-oriented — needs tap handling)
-- [ ] Onboarding / server-connection screen (`serverConnectionScreen`, `syncCodeScreen`) for the touch tier
-- [ ] Collections & folders (`collectionsScreen`, `collectionEditorScreen`, `folderDetailScreen`) — editor is form-heavy, needs 44px tap targets and touch-friendly reordering
-- [ ] Catalog "see all" grid (`catalogSeeAllScreen`) — currently DPAD-grid keyed
-- [ ] Cast screen (`castDetailScreen`) on touch
-- [ ] Plugins/add-ons management (`plugin`) on touch tier
-- [ ] TMDB/Trakt connect flows (NuvioMobile surfaces these in settings)
-- [ ] Account/membership screen (`accountScreen`, `membershipOverviewRepository`) on touch
+- [x] Profile selection + PIN overlay on touch tier (covered by T2/T3 above: picker grid, PIN keypad, editor overlays phone-scaled and gated `profile-picker`/`profile-editor`/`profile-tier`)
+- [x] Onboarding / server-connection screen (`serverConnectionScreen`, `syncCodeScreen`) for the touch tier: auth-simple shell phone-scaled (56/72px gutters, 48px title, 92px cards -> 24px/15px/56px), server-connection dialog input+buttons compacted, `server-connection` + `server-connection-list` gates through the real auth->server-menu path; syncCodeScreen shares the scaled auth-simple tokens (no in-app caller reachable without a pairing flow)
+- [x] Collections & folders (`collectionsScreen`, `collectionEditorScreen`, `folderDetailScreen`) — editor is form-heavy, needs 44px tap targets and touch-friendly reordering: manager phone-scaled (56px title, 28px copy, 88x80 actions, 40px icons, 26px nowrap New button crushing the header to ~71px at 390 wide -> 22/13px type, 44px actions); editor form rows/switches/dialog inputs compacted; `collections` + `collections-editor` gates via addons -> open_collections (folderDetail itself is account/data-bound, no guest-reachable folder row in the mock)
+- [x] Catalog "see all" grid (`catalogSeeAllScreen`): modern home layout never rendered the see-all tile (classic-only) — tile added, gated on compact tier so TV row markup stays byte-identical; onPointerActivate tap->detail added (grid was DPAD-keyed only); tile compacted (TV arrow+label+spacer inflated landscape tracks and pushed the first row under the nav); `catalog-see-all` + `catalog-see-all-detail` gates
+- [x] Cast screen (`castDetailScreen`) on touch: phone-tier CSS in components-66 (16px gutters, single-col hero, 130x195 avatar, 104x156 credit posters 2:3, 24/18/15px copy, 16px status); regression gates `cast` + `cast-route` (guest data errors → error state audited; loaded-state sizes grounded in components-51/52 TV rules)
+- [x] Plugins/add-ons management (`plugin`) on touch tier: addons+plugins route interiors were pure TV scale (48px title, 28px lede, 144px large rows, 88px actions, 104x64 toggles, 40px headings, 28px empty-card copy); phone-tier CSS in components-66 + `addons`/`plugins` regression gates
+- [x] TMDB/Trakt connect flows (NuvioMobile surfaces these in settings): integration hub + TMDB detail views pass geometry gates; settings Trakt device-auth section phone-scaled (48/28px TV hero type -> 20/14px); traktScreen route stays account-gated
+- [x] Account/membership screen (`accountScreen`, `membershipOverviewRepository`) on touch: account-shell tokens scaled with auth-simple (shared rules); `account` gate walks Settings -> nav:account (guest surface = in-settings account section)
 
 ## Phase 3 — Mobile-web shell behaviors the app has but the browser lacks
 
@@ -30,8 +43,8 @@ Grounded in branch `feat/web-touch-client` (8 commits ahead of origin). Screens 
 - [x] Installable/offline shell via service worker (UA-gated to browser tier; streams/media never cached; offline boot verified headless)
 - [x] Swipe gestures: horizontal carousels with touch drag/scroll (native scroll; camera spring now yields on touch tier in homeScreenMethods-16/17; detail rails snap-scrolled in components-66.css; regression probe has a home-swipe gate)
 - [x] Safe-area insets (notch/home bar) via `env(safe-area-inset-*)` on bottom nav and player controls (`--touch-safe-*` vars components-66.css:38-41; nav padding + `--player-overlay-bottom` offsets; `viewport-fit=cover` added to index.html meta, asserted by pwa-check; Tizen override untouched)
-- [ ] Landscape layout for tablets (currently the tier assumes 390dp portrait geometry)
-- [ ] Picture-in-Picture for background playback (browser substitute for the app's background play)
+- [x] Landscape layout for tablets: compact-tier detection already spans phone+tablet canvases (Platform.isCompactViewport: shorter side <1080, longer <1440); grid columns ride --touch-poster-columns breakpoints (discover/see-all were hardcoded 3-col -> ~400px cards on tablet, fixed to the token); probe CI now runs 390x844, 844x390, 768x1024, 1280x800 — all gates pass at every size
+- [x] Picture-in-Picture for background playback (browser substitute for the app's background play): PiP control in the touch-tier player controls (gated on web-touch + pictureInPictureEnabled + persistent shell #videoPlayer); leaving the player route keeps the session alive while PiP presents it, and closing the PiP window stops + flushes progress. Unit-tested availability/toggle; requestPictureInPicture verified live in headless Chromium. Full in-app e2e gate deferred: guest mock has no stream source (needs authenticated player harness work)
 - [ ] Session persistence so reopening the PWA returns to the same screen (deep links / history)
 
 ## Phase 4 — Mobile UX gaps vs NuvioMobile

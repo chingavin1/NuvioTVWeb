@@ -154,6 +154,10 @@ export function createPlayerScreenMethods68() {
       this.resetControlsAutoHide();
     },
     performControlAction(action) {
+      if (action === "pip") {
+        this.togglePictureInPicture();
+        return;
+      }
       if (action === "playPause") {
         this.togglePause();
         this.renderControlButtons();

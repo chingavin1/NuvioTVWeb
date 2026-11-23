@@ -214,12 +214,13 @@
   --modern-hero-description-max-width: 100%;
 }
 
+/* T6 residual sweep: row rhythm 48px (TV) -> 16px (NuvioMobile block gap). */
 .web-touch .home-screen-shell.home-layout-modern .home-modern-rows-scroll {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch .home-screen-shell.home-layout-modern .home-modern-catalogs {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch
@@ -228,7 +229,7 @@
 .web-touch
   .home-screen-shell.home-layout-modern.home-modern-landscape-posters
   .home-modern-rows-scroll {
-  gap: 24px;
+  gap: 16px;
 }
 
 .web-touch .home-screen-shell.home-layout-modern .home-row-title {
@@ -457,6 +458,40 @@
   padding: 10px 18px;
   border-radius: 14px;
   font-size: 16px;
+}
+
+/* Phone AND tablet login tier: the QR canvas is replaced by the one-time
+   login link (same payload the QR encoded) as the primary tap target when
+   the JS renders it (isSameDeviceLoginTier). The rules are therefore
+   self-scoped to the rendered block instead of .web-touch, so a finger-only
+   tablet in a wide (non-compact) window is styled too. TV/Tizen/webOS keep
+   the canvas path; :has() is unsupported on TV engines and simply drops the
+   flex rule, which only ever matches in the browser tiers anyway. */
+#qr-container:has(.qr-one-time-link) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.qr-one-time-link {
+  width: min(100%, 320px);
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+.qr-one-time-link-note {
+  margin-top: 10px;
+  padding: 0 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #8fa3b8;
+  text-align: center;
+}
+
+.qr-one-time-link-code {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #8fa3b8;
 }
 
 /* One-tap QR<->email switch on the touch tier (renderModeSwitch); the TV tier
@@ -755,6 +790,24 @@
   gap: 12px;
 }
 
+/* T6: the classic/horizon style variants re-pin the workspace gap/columns
+   with higher specificity than the tier rule above; match their chains. */
+.web-touch .settings-shell[data-settings-style="classic"] .settings-workspace {
+  gap: 12px;
+}
+
+.web-touch .settings-shell[data-settings-style="horizon"] .settings-workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* T6: TV scroll-affordance chevrons are 64px decorations; phone tier 40px. */
+.web-touch .settings-scroll-indicator,
+.web-touch .settings-scroll-indicator svg {
+  width: 40px;
+  height: 40px;
+}
+
 .web-touch .settings-sidebar-frame {
   overflow: hidden;
 }
@@ -803,6 +856,7 @@
 
 .web-touch .settings-content {
   padding-bottom: 16px;
+  gap: 16px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -825,8 +879,18 @@
 
 .web-touch .settings-dialog-option,
 .web-touch .settings-text-dialog-button {
-  min-height: 48px;
+  min-height: 44px;
+  padding: 10px 14px;
   font-size: 15px;
+}
+
+.web-touch .settings-dialog-option-label {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .settings-dialog-option-value {
+  font-size: 14px;
 }
 
 /* Search screen: TV header is a 110px-tall grid row on a 960dp canvas.
@@ -992,6 +1056,103 @@
 
 .web-touch .search-seeall-label {
   font-size: 13px;
+}
+
+/* Discover / catalog see-all grid: TV renders 248px cards with 372px posters
+   (one auto-fit column at 390dp = 442px-tall mega-cards, only fit-able on a
+   844-tall viewport). Phone tier matches the library grid: 3 columns, 2:3
+   posters, 15/13px copy. */
+/* Column count rides the shared mobile grid breakpoints
+   (--touch-poster-columns: 3 base, 4/5/6 at 600/1000/1200) — hardcoding 3
+   made tablet canvases (1024-1439) render ~400px-wide cards whose 2:3
+   posters no longer fit between header and nav. */
+.web-touch .discover-grid,
+.web-touch .seeall-grid {
+  grid-template-columns: repeat(var(--touch-poster-columns, 3), minmax(0, 1fr));
+  gap: 16px 12px;
+}
+
+.web-touch .discover-card,
+.web-touch .discover-action-card,
+.web-touch .seeall-card {
+  width: auto;
+  justify-self: stretch;
+}
+
+/* Discover nests the see-all shell inside .discover-main, which owns the
+   page gutters; don't double-pad. */
+.web-touch .discover-main {
+  padding: 16px var(--touch-gutter) calc(var(--touch-nav-height) + var(--touch-safe-bottom) + 16px);
+}
+
+.web-touch .seeall-shell.discover-seeall-shell {
+  padding: 0;
+}
+
+.web-touch .discover-card-poster,
+.web-touch .seeall-card-poster-wrap {
+  height: auto;
+  aspect-ratio: 2 / 3;
+}
+
+.web-touch .discover-card-title,
+.web-touch .discover-action-card-title {
+  font-size: 15px;
+  line-height: 19px;
+}
+
+.web-touch .discover-card-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.web-touch .seeall-shell {
+  padding: 16px var(--touch-gutter) 24px;
+}
+
+.web-touch .seeall-card-title {
+  font-size: 15px;
+  line-height: 19px;
+}
+
+/* Home "See all" tile at touch scale: the TV tile stacks arrow + label +
+   label-spacer (150px+), which inflated modern-row tracks on landscape
+   phones and pushed the first row under the bottom nav (hold gate caught
+   cards resting behind the nav bar). Touch tier: compact inner rhythm, no
+   bottom spacer (labels sit inside the tile box). */
+.web-touch .home-seeall-arrow {
+  font-size: 22px;
+}
+
+.web-touch .home-seeall-label {
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.web-touch .home-screen-shell .home-seeall-card-inner {
+  gap: 6px;
+  padding: 6px;
+}
+
+.web-touch .home-screen-shell .home-seeall-card-label-spacer {
+  display: none;
+}
+
+.web-touch .seeall-header,
+.web-touch .discover-results-head {
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.web-touch .seeall-title,
+.web-touch .discover-results-title {
+  font-size: 22px;
+}
+
+.web-touch .seeall-subtitle,
+.web-touch .discover-results-subtitle {
+  font-size: 14px;
 }
 
 /* Library: TV scale from Android TV LibraryScreen (56px titles, 150px chip
@@ -1488,7 +1649,901 @@
   .web-touch .home-nav-label {
     display: none;
   }
-  .web-touch .home-nav-item {
-    height: 40px;
+  .web-touch .home-sidebar .home-nav-item {
+    /* --touch-nav-height 52 minus the 14px chrome would give 38px targets;
+       enforce the 44px floor explicitly (selector must match the tier rule). */
+    height: 44px;
+  }
+  /* Discover/see-all: 2:3 posters are unscrollable in a 390-high viewport;
+     landscape tier goes wide-format like the home rails. */
+  .web-touch .discover-grid,
+  .web-touch .seeall-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+  .web-touch .discover-card-poster,
+  .web-touch .seeall-card-poster-wrap {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+/* --- Cast detail (castDetailScreen) on phones ---
+   TV geometry from Android TV CastDetailScreen: 96px gutters, 220x320
+   avatar next to a 48px name, 248x372 credit posters, 34px section titles,
+   28px loading/error text. Phone tier: single-column hero, 104px credit
+   posters (2:3), 15px titles, 16px status text. */
+.web-touch .cast-detail-shell {
+  padding: 12px var(--touch-gutter) calc(var(--touch-nav-height) + var(--touch-safe-bottom) + 20px);
+}
+
+.web-touch .cast-detail-loading,
+.web-touch .cast-detail-error {
+  margin-top: 18vh;
+  font-size: 16px;
+}
+
+.web-touch .cast-detail-loading .nuvio-loading-indicator {
+  width: 48px;
+  height: 48px;
+}
+
+.web-touch .cast-detail-back {
+  width: 44px;
+  height: 44px;
+}
+
+.web-touch .cast-detail-hero-content {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.web-touch .cast-detail-avatar {
+  width: 130px;
+  height: 195px;
+  border-radius: 12px;
+}
+
+.web-touch .cast-detail-name {
+  margin: 2px 0 8px;
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.web-touch .cast-detail-facts {
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.web-touch .cast-detail-facts span {
+  height: 28px;
+  padding: 0 10px;
+}
+
+.web-touch .cast-detail-bio {
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.web-touch .cast-detail-section-title {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.web-touch .cast-credit-section + .cast-credit-section {
+  margin-top: 20px;
+}
+
+.web-touch .cast-credit-track {
+  gap: 10px;
+}
+
+.web-touch .cast-credit-card {
+  flex: 0 0 104px;
+  width: 104px;
+  min-width: 104px;
+}
+
+.web-touch .cast-credit-poster {
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+}
+
+.web-touch .cast-credit-title {
+  min-height: 0;
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 19px;
+}
+
+.web-touch .cast-credit-subtitle {
+  font-size: 13px;
+  line-height: 16px;
+}
+
+/* --- Add-ons / plugins management on phones (addons + plugins routes) ---
+   TV scale from Android TV AddonsScreen/PluginsScreen: 48px title, 28px
+   lede, 144px-tall 40px-padded large rows with 48/42px icons, 88px-tall
+   28px action buttons, 104x64 toggles, 168px setting rows, 40px headings.
+   Shell gutters already clamp to phone; these fix the interiors. */
+.web-touch .addons-title {
+  margin: 0 0 16px;
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.web-touch .addons-lede {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .addons-meta {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .addons-sync-status {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .addons-install-card {
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.web-touch .addons-install-heading {
+  margin: 0 0 12px;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.web-touch .addons-large-row {
+  min-height: 64px;
+  margin-top: 12px;
+  border-radius: 16px;
+  grid-template-columns: 24px minmax(0, 1fr) 22px;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.web-touch .addons-large-row-icon {
+  font-size: 24px;
+}
+
+.web-touch .addons-large-row-copy strong {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .addons-large-row-copy small {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .addons-large-row-tail {
+  font-size: 22px;
+}
+
+.web-touch .addons-large-row-badge {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.web-touch .plugins-runtime-card,
+.web-touch .plugins-settings-card,
+.web-touch .plugins-repository-card,
+.web-touch .plugins-preserved-card,
+.web-touch .plugins-readonly-card,
+.web-touch .plugins-confirm-dialog {
+  border-radius: 16px;
+}
+
+.web-touch .plugins-runtime-card {
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.web-touch .plugins-runtime-icon {
+  font-size: 24px;
+}
+
+.web-touch .plugins-runtime-copy strong {
+  font-size: 15px;
+}
+
+.web-touch .plugins-runtime-copy span {
+  font-size: 13px;
+}
+
+.web-touch .plugins-readonly-card {
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  font-size: 13px;
+}
+
+.web-touch .plugins-readonly-icon {
+  font-size: 22px;
+}
+
+.web-touch .plugins-settings-card {
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.web-touch .plugins-empty-card {
+  padding: 20px 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+/* --- Trakt connect section in Settings on phones ---
+   Shares the TV Trakt panel's classes (components-22: 48px title, 28px
+   description/connected text, 96px logo). Phone tier for the settings
+   hero copy; the standalone route surface keeps TV sizes until an
+   authenticated session can render it on a phone. */
+.web-touch .settings-trakt-title {
+  margin-top: 12px;
+  font-size: 20px;
+  line-height: 26px;
+}
+
+.web-touch .settings-trakt-description {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .settings-trakt-connected {
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.web-touch .settings-trakt-logo {
+  width: 56px;
+  height: 56px;
+}
+
+/* --- Auth sign-in / server connection / sync code / account screens ---
+   These routes share .auth-simple-* (components-02): 56/72px shell
+   gutters, 48px titles, 22px subtitles, 92px 26px-padded cards. The
+   account shell shares the same tokens and gets the same treatment. */
+.web-touch .auth-simple-shell,
+.web-touch .account-shell {
+  padding: 24px 18px calc(var(--touch-safe-bottom, 0px) + 24px);
+  justify-content: flex-start;
+}
+
+.web-touch .auth-simple-hero {
+  margin: 0 auto 20px;
+}
+
+.web-touch .auth-simple-title,
+.web-touch .account-title {
+  font-size: 24px;
+  line-height: 30px;
+}
+
+.web-touch .auth-simple-subtitle,
+.web-touch .account-subtitle {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 21px;
+}
+
+.web-touch .auth-simple-actions,
+.web-touch .account-settings-stack {
+  gap: 12px;
+}
+
+.web-touch .auth-simple-card,
+.web-touch .account-card,
+.web-touch .account-settings-card {
+  min-height: 56px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+/* --- Collections & folders manager on phones ---
+   TV scale (components-63): 56px title, 28px copy, 88x80 action buttons,
+   40px action icons, 32/40px card padding, and a 26px nowrap New button
+   that crushes the header column to 71px at 390 wide. */
+.web-touch .collections-main {
+  padding: 16px 18px calc(var(--touch-safe-bottom, 0px) + 24px);
+}
+
+.web-touch .collections-header-row {
+  gap: 12px;
+}
+
+.web-touch .collections-title {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.web-touch .collections-subtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-new {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.web-touch .collections-new .material-icons {
+  font-size: 20px;
+}
+
+.web-touch .collections-list {
+  gap: 12px;
+  margin-top: 16px;
+  padding-bottom: 24px;
+}
+
+.web-touch .collections-empty {
+  margin: 14px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .collections-card {
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.web-touch .collections-card-copy h2 {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.web-touch .collections-card-subtitle,
+.web-touch .collections-card-pinned {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-card-actions {
+  gap: 6px;
+}
+
+.web-touch .collections-action {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+}
+
+.web-touch .collections-action .material-icons {
+  font-size: 22px;
+}
+
+.web-touch .collections-form {
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.web-touch .collections-form-row {
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.web-touch .collections-form-copy {
+  gap: 4px;
+}
+
+.web-touch .collections-form-label {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .collections-form-desc {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-form-value {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-form-chevron {
+  font-size: 20px;
+}
+
+.web-touch .collections-switch {
+  min-width: 56px;
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.web-touch .collections-form-section {
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.web-touch .collections-dialog-title {
+  font-size: 18px;
+}
+
+.web-touch .collections-dialog-input {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.web-touch .nuvio-dialog-panel.app-update-dialog {
+  gap: 12px;
+}
+
+.web-touch .app-update-version {
+  top: 14px;
+  right: 14px;
+  font-size: 13px;
+}
+
+.web-touch .app-update-notes-label {
+  font-size: 15px;
+}
+
+.web-touch .app-update-notes-heading {
+  font-size: 15px;
+}
+
+.web-touch .app-update-notes-paragraph {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .settings-text-dialog-input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.web-touch .plugins-section-heading {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.web-touch .plugins-section-heading h2,
+.web-touch .plugins-repository-copy h2,
+.web-touch .plugins-section-label h2 {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.web-touch .plugins-section-heading p {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .plugins-section-label {
+  margin: 0 0 12px;
+}
+
+.web-touch .plugins-setting-row {
+  gap: 12px;
+  min-height: 64px;
+  padding: 12px 14px;
+}
+
+.web-touch .plugins-setting-row strong,
+.web-touch .plugins-provider-copy strong {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .plugins-setting-row span,
+.web-touch .plugins-provider-copy span {
+  font-size: 13px;
+  line-height: 17px;
+}
+
+.web-touch .plugins-add-row {
+  gap: 10px;
+}
+
+.web-touch .plugins-repository-input {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.web-touch .plugins-action {
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  white-space: normal;
+}
+
+.web-touch .plugins-action .material-icons {
+  font-size: 20px;
+}
+
+.web-touch .plugins-toggle {
+  width: 64px;
+  min-width: 64px;
+  height: 38px;
+  padding: 4px;
+}
+
+.web-touch .plugins-toggle-pill {
+  padding: 6px;
+}
+
+.web-touch .plugins-toggle-pill > span {
+  width: 26px;
+  height: 26px;
+}
+
+/* ==========================================================================
+   ACTIVE GOAL phone-scale pass (2026-11-21): profile picker, profile
+   editor/PIN overlays, detail episode selection, residual detail chrome.
+   Grounded in the live-DOM audit (scripts/probes/scale-audit.mjs): picker
+   avatars rendered 185px/fs72 with 44px gaps; editor buttons collapsed to
+   5px (min(xvw,px) tokens win the vw branch at 390px); episode cards were
+   560x358 with fs32 titles and 220x88 season buttons on a 390px viewport.
+   ========================================================================== */
+
+/* --- Profile picker ("Who's watching?", also boot landing) --- */
+.web-touch #profileSelection .profile-title {
+  font-size: 20px;
+  line-height: 26px;
+}
+.web-touch #profileSelection .profile-subtitle {
+  font-size: 14px;
+}
+.web-touch #profileSelection img.theme-brand-wordmark {
+  max-height: 44px;
+  width: auto;
+}
+.web-touch #profileSelection .profile-grid {
+  gap: 18px;
+  min-height: 0;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+.web-touch #profileSelection .profile-card {
+  width: 158px;
+  padding: 6px 8px;
+}
+.web-touch #profileSelection .profile-avatar-ring {
+  width: 128px;
+  height: 128px;
+  margin: 8px auto;
+}
+.web-touch #profileSelection .profile-card.focused .profile-avatar-ring {
+  width: 136px;
+  height: 136px;
+  border-width: 4px;
+}
+.web-touch #profileSelection .profile-avatar {
+  width: 112px;
+  height: 112px;
+  font-size: 42px;
+}
+.web-touch #profileSelection .profile-primary-dot {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+.web-touch #profileSelection .profile-name {
+  font-size: 16px;
+  line-height: 1.3;
+}
+.web-touch #profileSelection .profile-badge {
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 3px 8px;
+}
+.web-touch #profileSelection .profile-hint {
+  font-size: 12px;
+}
+
+/* --- Profile editor overlay: the min(xvw,px) tokens collapse at 390px --- */
+.web-touch #profileSelection .profile-editor-panel {
+  width: calc(100vw - 24px);
+  max-width: 390px;
+  max-height: calc(100dvh - 24px);
+  padding: 14px;
+  border-radius: 16px;
+}
+.web-touch #profileSelection .profile-editor-header {
+  gap: 12px;
+  padding-left: 0;
+}
+.web-touch #profileSelection .profile-editor-heading-title {
+  font-size: 18px;
+}
+.web-touch #profileSelection .profile-editor-heading-kicker {
+  font-size: 12px;
+}
+.web-touch #profileSelection .profile-editor-body {
+  flex-direction: column;
+  gap: 12px;
+}
+.web-touch #profileSelection .profile-editor-preview {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: auto;
+  flex-wrap: wrap;
+}
+.web-touch #profileSelection button[data-action="select-copy-source"] {
+  flex: 1 1 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+}
+.web-touch #profileSelection .profile-editor-copy-source-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.web-touch #profileSelection .profile-editor-preview-avatar {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+}
+.web-touch #profileSelection .profile-editor-preview-name {
+  font-size: 15px;
+}
+.web-touch #profileSelection .profile-editor-divider {
+  display: none;
+}
+.web-touch #profileSelection .profile-editor-picker-pane,
+.web-touch #profileSelection .profile-editor-avatar-pane,
+.web-touch #profileSelection .profile-editor-background-pane {
+  width: 100%;
+  max-height: 34dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.web-touch #profileSelection .profile-editor-field-shell {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 140px;
+}
+.web-touch #profileSelection .profile-editor-name-input {
+  width: 100%;
+  min-width: 140px;
+  box-sizing: border-box;
+}
+.web-touch #profileSelection .profile-editor-preview-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.web-touch #profileSelection .profile-editor-avatar-title {
+  font-size: 13px;
+}
+.web-touch #profileSelection .profile-editor-avatar-hint {
+  font-size: 12px;
+}
+.web-touch #profileSelection .profile-editor-name-input {
+  min-height: 44px;
+  font-size: 16px;
+}
+.web-touch #profileSelection .profile-overlay-button {
+  min-height: 44px;
+  width: auto;
+  min-width: 48px;
+  padding: 0 12px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.web-touch #profileSelection .profile-editor-tabs {
+  gap: 8px;
+}
+.web-touch #profileSelection .profile-editor-tab {
+  min-height: 44px;
+  font-size: 14px;
+}
+.web-touch #profileSelection .profile-editor-category-row {
+  gap: 8px;
+  height: auto;
+}
+.web-touch #profileSelection .profile-avatar-category {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 0 12px;
+}
+.web-touch #profileSelection .profile-editor-avatar-grid {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-avatar-tile {
+  width: 64px;
+  height: 64px;
+}
+.web-touch #profileSelection .profile-background-grid {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-background-tile {
+  height: 56px;
+}
+
+/* --- Profile PIN overlay --- */
+.web-touch #profileSelection .profile-pin-layer {
+  padding: 0 20px;
+}
+.web-touch #profileSelection .profile-pin-heading {
+  font-size: 22px;
+  line-height: 28px;
+}
+.web-touch #profileSelection .profile-pin-box {
+  width: 44px;
+  height: 52px;
+}
+.web-touch #profileSelection .profile-pin-keypad {
+  grid-template-columns: repeat(3, 72px);
+  grid-auto-rows: 56px;
+  gap: 10px;
+}
+.web-touch #profileSelection .profile-pin-key {
+  font-size: 22px;
+  border-radius: 10px;
+}
+.web-touch #profileSelection .profile-pin-support {
+  font-size: 13px;
+}
+.web-touch #profileSelection .profile-pin-forgot,
+.web-touch #profileSelection .profile-pin-back-hint {
+  font-size: 12px;
+}
+
+/* --- Detail episode selection (series detail) --- */
+.web-touch .series-season-row {
+  gap: 10px;
+  padding-top: 12px;
+  padding-bottom: 6px;
+}
+.web-touch .series-season-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 15px;
+  line-height: 1;
+}
+.web-touch .series-episode-track {
+  gap: 12px;
+  padding: 12px 16px;
+}
+.web-touch .series-episode-card {
+  flex: 0 0 300px;
+  width: 300px;
+  border-radius: 14px;
+}
+.web-touch .series-episode-thumb {
+  height: 169px;
+  border-radius: 14px;
+}
+.web-touch .series-episode-copy {
+  padding: 10px 12px 12px;
+  gap: 6px;
+  border-radius: 0 0 14px 14px;
+}
+.web-touch .series-episode-badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  line-height: 1.2;
+}
+.web-touch .series-episode-title {
+  min-height: 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+.web-touch .series-episode-overview {
+  font-size: 13px;
+  line-height: 1.45;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.web-touch .series-episode-meta {
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+.web-touch .series-episode-meta .series-imdb-badge {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.web-touch .series-episode-date {
+  white-space: nowrap;
+}
+
+/* --- Detail residual chrome from the 390x844 audit --- */
+.web-touch .series-insight-tabs {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.web-touch .series-insight-tab {
+  min-height: 44px;
+  font-size: 14px;
+}
+.web-touch .detail-meta-row {
+  gap: 12px;
+}
+.web-touch .detail-meta-row.secondary {
+  gap: 12px;
+}
+.web-touch .detail-meta-stack .series-imdb-badge img {
+  width: 32px;
+  height: 16px;
+}
+.web-touch .detail-synopsis-more {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.web-touch .series-detail-description {
+  line-height: 1.5;
+}
+.web-touch .movie-cast-avatar {
+  width: 64px;
+  height: 64px;
+}
+.web-touch .movie-cast-card {
+  width: 84px;
+}
+.web-touch .series-cast-track .movie-cast-card,
+.web-touch .series-cast-track article {
+  width: 84px;
+}
+.web-touch .movie-cast-avatar .movie-cast-avatar-fallback,
+.web-touch span.movie-cast-avatar-fallback {
+  font-size: 20px;
+}
+.web-touch .series-episode-track,
+.web-touch .series-cast-track,
+.web-touch .movie-cast-track {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Landscape phones: keep the picker compact vertically too. */
+@media (max-height: 520px) {
+  .web-touch #profileSelection .profile-avatar-ring {
+    width: 96px;
+    height: 96px;
+  }
+  .web-touch #profileSelection .profile-avatar {
+    width: 84px;
+    height: 84px;
+    font-size: 32px;
+  }
+  .web-touch #profileSelection .profile-card {
+    width: 130px;
+  }
+  .web-touch #profileSelection .profile-name {
+    font-size: 14px;
+  }
+  .web-touch .series-episode-card {
+    flex-basis: 240px;
+    width: 240px;
+  }
+  .web-touch .series-episode-thumb {
+    height: 135px;
   }
 }
