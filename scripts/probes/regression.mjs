@@ -170,10 +170,10 @@ const AUDIT = (arg) => {
       // Collapsible groups put option stacks INSIDE the row element; its
       // height tracks content and is not a tap-target scale signal.
       if (el.querySelector('button,[role="button"],.focusable,input,select')) continue;
-      // Settings rows are content-height buttons (title+subtitle wrap at
-      // phone width); their scale signal is the copy type, caught by the
-      // font/line-height guards, not the button height.
-      if (el.querySelector(".settings-row-copy")) continue;
+      // Settings and collections form rows are content-height buttons
+      // (title+description wrap at phone width); their scale signal is the
+      // copy type, caught by the font/line-height guards, not the height.
+      if (el.querySelector(".settings-row-copy, .collections-form-copy")) continue;
       const h = el.getBoundingClientRect().height;
       if (h > 72)
         fails.push({
@@ -260,8 +260,19 @@ async function gotoHome(page) {
   await page.waitForTimeout(1200);
 }
 async function navTo(page, text) {
+  // Route gates can leave the session one or two router entries deep
+  // (settings drill views themselves push history). Unwind back to the
+  // app shell before reaching for the bottom nav.
+  for (let i = 0; i < 5; i++) {
+    const hasNav = await page.evaluate(
+      () => document.querySelectorAll(".home-nav-item").length > 0
+    );
+    if (hasNav) break;
+    await page.goBack().catch(() => {});
+    await page.waitForTimeout(700);
+  }
   try {
-    await page.waitForSelector(".home-nav-item", { timeout: 20000 });
+    await page.waitForSelector(".home-nav-item", { timeout: 8000 });
   } catch (_) {}
   await page.evaluate(
     (t) =>
@@ -923,6 +934,54 @@ if (!harnessOnly) {
       );
     } else {
       await audit(page, label);
+      // Collections manager lives on the add-ons screen; the New
+      // Collection editor renders in place (no creation is submitted).
+      if (label === "addons") {
+        const collOk = await page.evaluate(() => {
+          const b = document.querySelector('[data-action-id="open_collections"]');
+          if (!b) return false;
+          b.scrollIntoView({ block: "center" });
+          b.click();
+          return true;
+        });
+        if (collOk) {
+          await page.waitForTimeout(2000);
+          await audit(page, "collections");
+          const editorOk = await page.evaluate(() => {
+            const b = document.querySelector(
+              '.collections-new [data-action="new"], [data-action="new"]'
+            );
+            if (!b) return false;
+            b.scrollIntoView({ block: "center" });
+            b.click();
+            return true;
+          });
+          if (editorOk) {
+            await page.waitForTimeout(1500);
+            await audit(page, "collections-editor");
+          } else {
+            results.push({
+              label: "collections-editor",
+              ok: false,
+              fails: [{ kind: "route", why: "no [data-action=new] on collections screen" }]
+            });
+            console.log(
+              'FAIL collections-editor [{"kind":"route","why":"no [data-action=new] on collections screen"}]'
+            );
+          }
+          await page.goBack().catch(() => {});
+          await page.waitForTimeout(800);
+        } else {
+          results.push({
+            label: "collections",
+            ok: false,
+            fails: [{ kind: "route", why: "no open_collections entry on addons screen" }]
+          });
+          console.log(
+            'FAIL collections [{"kind":"route","why":"no open_collections entry on addons screen"}]'
+          );
+        }
+      }
     }
     await page.goBack().catch(() => {});
     await page.waitForTimeout(900);

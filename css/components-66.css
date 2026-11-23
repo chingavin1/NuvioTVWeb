@@ -1917,6 +1917,164 @@
   border-radius: 16px;
 }
 
+/* --- Collections & folders manager on phones ---
+   TV scale (components-63): 56px title, 28px copy, 88x80 action buttons,
+   40px action icons, 32/40px card padding, and a 26px nowrap New button
+   that crushes the header column to 71px at 390 wide. */
+.web-touch .collections-main {
+  padding: 16px 18px calc(var(--touch-safe-bottom, 0px) + 24px);
+}
+
+.web-touch .collections-header-row {
+  gap: 12px;
+}
+
+.web-touch .collections-title {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.web-touch .collections-subtitle {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-new {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.web-touch .collections-new .material-icons {
+  font-size: 20px;
+}
+
+.web-touch .collections-list {
+  gap: 12px;
+  margin-top: 16px;
+  padding-bottom: 24px;
+}
+
+.web-touch .collections-empty {
+  margin: 14px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.web-touch .collections-card {
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.web-touch .collections-card-copy h2 {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.web-touch .collections-card-subtitle,
+.web-touch .collections-card-pinned {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-card-actions {
+  gap: 6px;
+}
+
+.web-touch .collections-action {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 14px;
+}
+
+.web-touch .collections-action .material-icons {
+  font-size: 22px;
+}
+
+.web-touch .collections-form {
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.web-touch .collections-form-row {
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.web-touch .collections-form-copy {
+  gap: 4px;
+}
+
+.web-touch .collections-form-label {
+  font-size: 15px;
+  line-height: 20px;
+}
+
+.web-touch .collections-form-desc {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-form-value {
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.web-touch .collections-form-chevron {
+  font-size: 20px;
+}
+
+.web-touch .collections-switch {
+  min-width: 56px;
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.web-touch .collections-form-section {
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.web-touch .collections-dialog-title {
+  font-size: 18px;
+}
+
+.web-touch .collections-dialog-input {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.web-touch .nuvio-dialog-panel.app-update-dialog {
+  gap: 12px;
+}
+
+.web-touch .app-update-version {
+  top: 14px;
+  right: 14px;
+  font-size: 13px;
+}
+
+.web-touch .app-update-notes-label {
+  font-size: 15px;
+}
+
+.web-touch .app-update-notes-heading {
+  font-size: 15px;
+}
+
+.web-touch .app-update-notes-paragraph {
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .web-touch .settings-text-dialog-input {
   min-height: 44px;
   padding: 0 12px;
