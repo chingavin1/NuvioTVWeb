@@ -1111,6 +1111,34 @@
   padding: 16px var(--touch-gutter) 24px;
 }
 
+.web-touch .seeall-card-title {
+  font-size: 15px;
+  line-height: 19px;
+}
+
+/* Home "See all" tile at touch scale: the TV tile stacks arrow + label +
+   label-spacer (150px+), which inflated modern-row tracks on landscape
+   phones and pushed the first row under the bottom nav (hold gate caught
+   cards resting behind the nav bar). Touch tier: compact inner rhythm, no
+   bottom spacer (labels sit inside the tile box). */
+.web-touch .home-seeall-arrow {
+  font-size: 22px;
+}
+
+.web-touch .home-seeall-label {
+  font-size: 12px;
+  line-height: 15px;
+}
+
+.web-touch .home-screen-shell .home-seeall-card-inner {
+  gap: 6px;
+  padding: 6px;
+}
+
+.web-touch .home-screen-shell .home-seeall-card-label-spacer {
+  display: none;
+}
+
 .web-touch .seeall-header,
 .web-touch .discover-results-head {
   margin-bottom: 12px;

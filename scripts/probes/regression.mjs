@@ -698,6 +698,50 @@ if (!harnessOnly) {
     `${holdProblems.length ? "FAIL" : "PASS"} home-hold-menu${holdProblems.length ? " " + JSON.stringify(holdProblems) : ""}`
   );
 
+  // Catalog "See all": the modern layout exposes the tile on compact-tier
+  // canvases only; tap-to-detail must work because this grid is DPAD-keyed
+  // and touch is the primary input here.
+  const seeAllOk = await page.evaluate(() => {
+    const b = document.querySelector('[data-action="openCatalogSeeAll"]');
+    if (!b) return false;
+    b.scrollIntoView({ block: "center", inline: "center" });
+    b.click();
+    return true;
+  });
+  if (seeAllOk) {
+    await page.waitForTimeout(2200);
+    await audit(page, "catalog-see-all");
+    const tapped = await page.evaluate(() => {
+      const c = document.querySelector('.seeall-card[data-action="openDetail"]');
+      if (!c) return false;
+      c.scrollIntoView({ block: "center" });
+      c.click();
+      return true;
+    });
+    await page.waitForTimeout(2500);
+    const detailUp = await page.evaluate(() =>
+      Boolean(
+        document.querySelector('[data-action="play"], .detail-loading-shell, .series-detail-shell')
+      )
+    );
+    const problems = !tapped
+      ? [{ kind: "route", why: "no seeall openDetail card" }]
+      : detailUp
+        ? []
+        : [{ kind: "route", why: "card tap did not open detail" }];
+    results.push({ label: "catalog-see-all-detail", ok: problems.length === 0, fails: problems });
+    console.log(
+      `${problems.length ? "FAIL" : "PASS"} catalog-see-all-detail${problems.length ? " " + JSON.stringify(problems) : ""}`
+    );
+    await page.goBack().catch(() => {}); // detail -> see-all
+    await page.waitForTimeout(900);
+  } else {
+    results.push({ label: "catalog-see-all", ok: true, fails: [], skipped: true });
+    console.log("SKIP catalog-see-all (no see-all tile on this layout/data)");
+  }
+  await page.goBack().catch(() => {}); // see-all -> home (or no-op when skipped)
+  await page.waitForTimeout(900);
+
   const reportHold = (label, resProblems) => {
     const skipped = resProblems === null;
     results.push({

@@ -198,6 +198,15 @@ export function createCatalogSeeAllScreenMethods02() {
       this.posterOptionsFocusKey = "";
       return true;
     },
+    // Tap-to-open: the see-all grid was DPAD-keyed only; on the touch tier
+    // a tap is the primary entry into a title.
+    onPointerActivate(target) {
+      const actionTarget = target?.closest?.(".seeall-card.focusable[data-action='openDetail']");
+      if (!actionTarget) {
+        return false;
+      }
+      return this.openDetailFromNode(actionTarget);
+    },
     openDetailFromNode(node) {
       if (!node) {
         return false;
