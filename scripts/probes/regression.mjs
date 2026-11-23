@@ -458,6 +458,18 @@ async function holdGate(
 }
 
 async function swipeGate(page) {
+  // Rails fill asynchronously after the shell mounts; poll for a swipeable
+  // track instead of sampling once (a single early sample made this gate
+  // flap "no swipeable .home-track found" on slower runs).
+  try {
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll(".home-track")].some(
+          (t) => t.scrollWidth > t.clientWidth + 40
+        ),
+      { timeout: 8000 }
+    );
+  } catch (_) {}
   const pre = await page.evaluate(() => {
     const track = [...document.querySelectorAll(".home-track")].find(
       (t) => t.scrollWidth > t.clientWidth + 40

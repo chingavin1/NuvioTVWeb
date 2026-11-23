@@ -212,8 +212,12 @@ export function createPlayerScreenMethods73() {
         // above threw, so the user is never left stuck in the player with the
         // video still playing (seen on Samsung Tizen when the EngineFS release
         // throws during cleanup and aborts the route navigation).
+        // Touch-tier exception: while the session is presented in Picture-in-
+        // Picture, leaving the route keeps it playing (background play); the
+        // leavepictureinpicture handler stops it when the window closes.
         try {
-          PlayerController.stop();
+          const pipHoldsSession = document.pictureInPictureElement && document.pictureInPictureElement.id === "videoPlayer";
+          if (!pipHoldsSession) PlayerController.stop();
         } catch (_) {}
         try {
           if (this.container) {

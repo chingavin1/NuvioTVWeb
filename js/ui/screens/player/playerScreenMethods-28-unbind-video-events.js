@@ -13,6 +13,32 @@ export function createPlayerScreenMethods28() {
       });
       this.videoListeners = [];
     },
+    isPictureInPictureAvailable() {
+      try {
+        if (this.isExternalFrameMode()) return false;
+        if (!document.pictureInPictureEnabled) return false;
+        // Touch tier only: the phone/tablet web build has no background-play
+        // service, so PiP is its substitute. TV tiers either lack PiP (webOS
+        // AVPlay, Tizen) or have their own background behavior.
+        if (!document.body?.classList?.contains("web-touch")) return false;
+        const video = document.getElementById("videoPlayer");
+        return Boolean(video && typeof video.requestPictureInPicture === "function");
+      } catch (_) {
+        return false;
+      }
+    },
+    togglePictureInPicture() {
+      if (!this.isPictureInPictureAvailable()) return;
+      const video = document.getElementById("videoPlayer");
+      try {
+        if (document.pictureInPictureElement === video) {
+          void document.exitPictureInPicture?.();
+          return;
+        }
+        const p = video.requestPictureInPicture();
+        if (p && typeof p.catch === "function") p.catch(() => {});
+      } catch (_) {}
+    },
     getPlaybackControlPaused() {
       const conversion = PlayerController.webOsDtsAudioState;
       // Native decoder pauses during a track reload are not user commands.
@@ -75,6 +101,14 @@ export function createPlayerScreenMethods28() {
         icon: "assets/icons/ic_player_source.svg",
         title: t("sources_title", {}, "Sources")
       });
+
+      if (this.isPictureInPictureAvailable()) {
+        base.push({
+          action: "pip",
+          label: "⧉",
+          title: t("player_pip_title", {}, "Picture-in-Picture")
+        });
+      }
 
       if (Array.isArray(uiState.episodesAll) && uiState.episodesAll.length) {
         base.push({
