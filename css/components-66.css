@@ -1062,9 +1062,13 @@
    (one auto-fit column at 390dp = 442px-tall mega-cards, only fit-able on a
    844-tall viewport). Phone tier matches the library grid: 3 columns, 2:3
    posters, 15/13px copy. */
+/* Column count rides the shared mobile grid breakpoints
+   (--touch-poster-columns: 3 base, 4/5/6 at 600/1000/1200) — hardcoding 3
+   made tablet canvases (1024-1439) render ~400px-wide cards whose 2:3
+   posters no longer fit between header and nav. */
 .web-touch .discover-grid,
 .web-touch .seeall-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--touch-poster-columns, 3), minmax(0, 1fr));
   gap: 16px 12px;
 }
 

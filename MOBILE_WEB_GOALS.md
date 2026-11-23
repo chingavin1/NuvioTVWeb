@@ -43,7 +43,7 @@ User directive: downscale UI elements to phone scale everywhere, explicitly incl
 - [x] Installable/offline shell via service worker (UA-gated to browser tier; streams/media never cached; offline boot verified headless)
 - [x] Swipe gestures: horizontal carousels with touch drag/scroll (native scroll; camera spring now yields on touch tier in homeScreenMethods-16/17; detail rails snap-scrolled in components-66.css; regression probe has a home-swipe gate)
 - [x] Safe-area insets (notch/home bar) via `env(safe-area-inset-*)` on bottom nav and player controls (`--touch-safe-*` vars components-66.css:38-41; nav padding + `--player-overlay-bottom` offsets; `viewport-fit=cover` added to index.html meta, asserted by pwa-check; Tizen override untouched)
-- [ ] Landscape layout for tablets (currently the tier assumes 390dp portrait geometry)
+- [x] Landscape layout for tablets: compact-tier detection already spans phone+tablet canvases (Platform.isCompactViewport: shorter side <1080, longer <1440); grid columns ride --touch-poster-columns breakpoints (discover/see-all were hardcoded 3-col -> ~400px cards on tablet, fixed to the token); probe CI now runs 390x844, 844x390, 768x1024, 1280x800 — all gates pass at every size
 - [ ] Picture-in-Picture for background playback (browser substitute for the app's background play)
 - [ ] Session persistence so reopening the PWA returns to the same screen (deep links / history)
 
